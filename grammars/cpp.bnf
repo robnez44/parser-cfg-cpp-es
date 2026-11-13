@@ -1,0 +1,247 @@
+# LL(1) grammar for the C++ subset (Phase 1), in class notation.
+# Same grammar as cpp.gram, rule by rule: no left recursion and no alternatives
+# sharing a common prefix. ε is the empty string.
+# Only LL(1) conflict: <else_part>. On "else", the parser chooses "else" <stmt>.
+# Generated from cpp.gram (python -m verifier grammars/cpp.gram --class-notation). Do not edit by hand.
+
+# Program and header
+<program> ::= <header> <global_list>
+
+<header> ::= <include_list> <using_std>
+
+<include_list> ::= <include_directive> <include_list>
+                 | ε
+
+<using_std> ::= "using" "namespace" "std" ";"
+              | ε
+
+
+# Global declarations and functions
+<global_list> ::= <global_decl> <global_list>
+                | ε
+
+<global_decl> ::= <type> <identifier> <global_decl_tail>
+                | "void" <identifier> "(" <params> ")" <block>
+
+<global_decl_tail> ::= "(" <params> ")" <block>
+                     | <var_decl_tail> ";"
+
+<type> ::= "int"
+         | "float"
+         | "double"
+         | "char"
+         | "bool"
+         | "string"
+
+<params> ::= <param> <params_tail>
+           | ε
+
+<params_tail> ::= "," <param> <params_tail>
+                | ε
+
+<param> ::= <type> <identifier>
+
+
+# Variable declarations
+<var_decl_tail> ::= <initializer> <declarator_list>
+
+<initializer> ::= "=" <expr>
+                | ε
+
+<declarator_list> ::= "," <identifier> <initializer> <declarator_list>
+                    | ε
+
+<local_decl> ::= <type> <identifier> <var_decl_tail> ";"
+
+
+# Statements
+<block> ::= "{" <stmt_list> "}"
+
+<stmt_list> ::= <stmt> <stmt_list>
+              | ε
+
+<stmt> ::= <local_decl>
+         | <expr_stmt>
+         | <if_stmt>
+         | <while_stmt>
+         | <do_while_stmt>
+         | <for_stmt>
+         | <switch_stmt>
+         | <break_stmt>
+         | <continue_stmt>
+         | <return_stmt>
+         | <cout_stmt>
+         | <cin_stmt>
+         | <block>
+         | <empty_stmt>
+
+<expr_stmt> ::= <expr> ";"
+
+<empty_stmt> ::= ";"
+
+<if_stmt> ::= "if" "(" <expr> ")" <stmt> <else_part>
+
+<else_part> ::= "else" <stmt>
+              | ε
+
+<while_stmt> ::= "while" "(" <expr> ")" <stmt>
+
+<do_while_stmt> ::= "do" <stmt> "while" "(" <expr> ")" ";"
+
+<for_stmt> ::= "for" "(" <for_init> <opt_expr> ";" <opt_expr> ")" <stmt>
+
+<for_init> ::= <local_decl>
+             | <opt_expr> ";"
+
+<opt_expr> ::= <expr>
+             | ε
+
+<switch_stmt> ::= "switch" "(" <expr> ")" "{" <case_list> "}"
+
+<case_list> ::= <case> <case_list>
+              | ε
+
+<case> ::= "case" <case_label> ":" <stmt_list>
+         | "default" ":" <stmt_list>
+
+<case_label> ::= <int_literal>
+               | <char_literal>
+               | "-" <int_literal>
+               | "true"
+               | "false"
+
+<break_stmt> ::= "break" ";"
+
+<continue_stmt> ::= "continue" ";"
+
+<return_stmt> ::= "return" <opt_expr> ";"
+
+
+# Input and output
+<cout_stmt> ::= "cout" "<<" <cout_item> <cout_tail> ";"
+
+<cout_tail> ::= "<<" <cout_item> <cout_tail>
+              | ε
+
+<cout_item> ::= "endl"
+              | <additive_expr>
+
+<cin_stmt> ::= "cin" ">>" <identifier> <cin_tail> ";"
+
+<cin_tail> ::= ">>" <identifier> <cin_tail>
+             | ε
+
+
+# Expressions (lowest to highest precedence)
+<expr> ::= <assign_expr>
+
+<assign_expr> ::= <or_expr> <assign_tail>
+
+<assign_tail> ::= <assign_op> <assign_expr>
+                | ε
+
+<assign_op> ::= "="
+              | "+="
+              | "-="
+              | "*="
+              | "/="
+              | "%="
+
+<or_expr> ::= <and_expr> <or_expr_tail>
+
+<or_expr_tail> ::= "||" <and_expr> <or_expr_tail>
+                 | ε
+
+<and_expr> ::= <equality_expr> <and_expr_tail>
+
+<and_expr_tail> ::= "&&" <equality_expr> <and_expr_tail>
+                  | ε
+
+<equality_expr> ::= <relational_expr> <equality_expr_tail>
+
+<equality_expr_tail> ::= <equality_op> <relational_expr> <equality_expr_tail>
+                       | ε
+
+<equality_op> ::= "=="
+                | "!="
+
+<relational_expr> ::= <additive_expr> <relational_expr_tail>
+
+<relational_expr_tail> ::= <relational_op> <additive_expr> <relational_expr_tail>
+                         | ε
+
+<relational_op> ::= "<"
+                  | ">"
+                  | "<="
+                  | ">="
+
+<additive_expr> ::= <mult_expr> <additive_expr_tail>
+
+<additive_expr_tail> ::= <additive_op> <mult_expr> <additive_expr_tail>
+                       | ε
+
+<additive_op> ::= "+"
+                | "-"
+
+<mult_expr> ::= <unary_expr> <mult_expr_tail>
+
+<mult_expr_tail> ::= <mult_op> <unary_expr> <mult_expr_tail>
+                   | ε
+
+<mult_op> ::= "*"
+            | "/"
+            | "%"
+
+<unary_expr> ::= <unary_op> <unary_expr>
+               | <postfix_expr>
+
+<unary_op> ::= "!"
+             | "-"
+             | "+"
+             | "++"
+             | "--"
+
+<postfix_expr> ::= <primary> <postfix_opt>
+
+<postfix_opt> ::= "++"
+                | "--"
+                | ε
+
+<primary> ::= <identifier> <id_tail>
+            | <literal>
+            | "(" <expr> ")"
+
+<id_tail> ::= "(" <args> ")"
+            | ε
+
+<args> ::= <expr> <args_tail>
+         | ε
+
+<args_tail> ::= "," <expr> <args_tail>
+              | ε
+
+<literal> ::= <int_literal>
+            | <float_literal>
+            | <string_literal>
+            | <char_literal>
+            | "true"
+            | "false"
+
+# Lexical level
+# These categories are recognized by the lexer with regular expressions (type 3 languages).
+# The parser receives them as tokens, so they are not defined with syntactic rules.
+
+<include_directive> ::= "#include <iostream>"
+                      | "#include <string>"
+
+<identifier> ::= a letter or "_", followed by letters, digits or "_"
+                 (must not be a reserved word)
+
+<int_literal> ::= one or more digits
+
+<float_literal> ::= one or more digits "." one or more digits
+
+<string_literal> ::= '"' characters without a newline '"'
+                     (accepted escapes: \n \t \\ \" \')
+
+<char_literal> ::= "'" one character or one escape "'"

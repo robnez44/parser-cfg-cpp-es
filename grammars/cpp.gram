@@ -1,0 +1,85 @@
+# Grammar for the C++ subset (Phase 1)
+# Format: one rule per line, alternatives separated by |, symbols separated by spaces.
+# Nonterminals in CamelCase, terminals use the token type name, ε is the empty string.
+# The start symbol is the left-hand side of the first rule. EOF is not written: the verifier uses it as $.
+# Accepted LL(1) conflict: M[ElsePart, ELSE] (dangling else). The parser chooses ElsePart -> ELSE Stmt.
+
+# ---------- Program and header ----------
+Program -> Header GlobalList
+Header -> IncludeList UsingStd
+IncludeList -> INCLUDE IncludeList | ε
+UsingStd -> USING NAMESPACE STD SEMICOLON | ε
+
+# ---------- Global declarations and functions ----------
+GlobalList -> GlobalDecl GlobalList | ε
+GlobalDecl -> Type ID GlobalDeclTail | VOID ID LPAREN Params RPAREN Block
+GlobalDeclTail -> LPAREN Params RPAREN Block | VarDeclTail SEMICOLON
+Type -> INT | FLOAT | DOUBLE | CHAR | BOOL | STRING
+Params -> Param ParamsTail | ε
+ParamsTail -> COMMA Param ParamsTail | ε
+Param -> Type ID
+
+# ---------- Variable declarations ----------
+VarDeclTail -> Initializer DeclaratorList
+Initializer -> ASSIGN Expr | ε
+DeclaratorList -> COMMA ID Initializer DeclaratorList | ε
+LocalDecl -> Type ID VarDeclTail SEMICOLON
+
+# ---------- Statements ----------
+Block -> LBRACE StmtList RBRACE
+StmtList -> Stmt StmtList | ε
+Stmt -> LocalDecl | ExprStmt | IfStmt | WhileStmt | DoWhileStmt | ForStmt | SwitchStmt | BreakStmt | ContinueStmt | ReturnStmt | CoutStmt | CinStmt | Block | EmptyStmt
+ExprStmt -> Expr SEMICOLON
+EmptyStmt -> SEMICOLON
+IfStmt -> IF LPAREN Expr RPAREN Stmt ElsePart
+ElsePart -> ELSE Stmt | ε
+WhileStmt -> WHILE LPAREN Expr RPAREN Stmt
+DoWhileStmt -> DO Stmt WHILE LPAREN Expr RPAREN SEMICOLON
+ForStmt -> FOR LPAREN ForInit OptExpr SEMICOLON OptExpr RPAREN Stmt
+ForInit -> LocalDecl | OptExpr SEMICOLON
+OptExpr -> Expr | ε
+SwitchStmt -> SWITCH LPAREN Expr RPAREN LBRACE CaseList RBRACE
+CaseList -> Case CaseList | ε
+Case -> CASE CaseLabel COLON StmtList | DEFAULT COLON StmtList
+CaseLabel -> INT_LITERAL | CHAR_LITERAL | MINUS INT_LITERAL | TRUE | FALSE
+BreakStmt -> BREAK SEMICOLON
+ContinueStmt -> CONTINUE SEMICOLON
+ReturnStmt -> RETURN OptExpr SEMICOLON
+
+# ---------- Input and output ----------
+CoutStmt -> COUT SHIFT_LEFT CoutItem CoutTail SEMICOLON
+CoutTail -> SHIFT_LEFT CoutItem CoutTail | ε
+CoutItem -> ENDL | AdditiveExpr
+CinStmt -> CIN SHIFT_RIGHT ID CinTail SEMICOLON
+CinTail -> SHIFT_RIGHT ID CinTail | ε
+
+# ---------- Expressions (lowest to highest precedence) ----------
+Expr -> AssignExpr
+AssignExpr -> OrExpr AssignTail
+AssignTail -> AssignOp AssignExpr | ε
+AssignOp -> ASSIGN | PLUS_ASSIGN | MINUS_ASSIGN | STAR_ASSIGN | SLASH_ASSIGN | PERCENT_ASSIGN
+OrExpr -> AndExpr OrExprTail
+OrExprTail -> OR AndExpr OrExprTail | ε
+AndExpr -> EqualityExpr AndExprTail
+AndExprTail -> AND EqualityExpr AndExprTail | ε
+EqualityExpr -> RelationalExpr EqualityExprTail
+EqualityExprTail -> EqualityOp RelationalExpr EqualityExprTail | ε
+EqualityOp -> EQUAL | NOT_EQUAL
+RelationalExpr -> AdditiveExpr RelationalExprTail
+RelationalExprTail -> RelationalOp AdditiveExpr RelationalExprTail | ε
+RelationalOp -> LESS | GREATER | LESS_EQUAL | GREATER_EQUAL
+AdditiveExpr -> MultExpr AdditiveExprTail
+AdditiveExprTail -> AdditiveOp MultExpr AdditiveExprTail | ε
+AdditiveOp -> PLUS | MINUS
+MultExpr -> UnaryExpr MultExprTail
+MultExprTail -> MultOp UnaryExpr MultExprTail | ε
+MultOp -> STAR | SLASH | PERCENT
+UnaryExpr -> UnaryOp UnaryExpr | PostfixExpr
+UnaryOp -> NOT | MINUS | PLUS | INCREMENT | DECREMENT
+PostfixExpr -> Primary PostfixOpt
+PostfixOpt -> INCREMENT | DECREMENT | ε
+Primary -> ID IdTail | Literal | LPAREN Expr RPAREN
+IdTail -> LPAREN Args RPAREN | ε
+Args -> Expr ArgsTail | ε
+ArgsTail -> COMMA Expr ArgsTail | ε
+Literal -> INT_LITERAL | FLOAT_LITERAL | STRING_LITERAL | CHAR_LITERAL | TRUE | FALSE
