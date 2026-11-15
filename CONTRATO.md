@@ -34,7 +34,7 @@ Este documento fija las decisiones y las interfaces entre las partes del proyect
 | 8 | `cin` y `cout` | Sentencias propias. Después de `<<` va una expresión aditiva o `endl`; después de `>>` va solo un identificador |
 | 9 | Errores | Se reporta el primer error con línea, columna, lo esperado y lo encontrado. El modo pánico es opcional |
 | 10 | Extensión al español | Módulo aparte que reutiliza el nodo del árbol y el verificador, con sus propios archivos de gramática |
-| 11 | Herramientas | Python 3.11 o superior, pytest, NLTK, spaCy con `es_core_news_md`, GitHub |
+| 11 | Herramientas | uv para el entorno y las dependencias, Python 3.12, pytest, NLTK, spaCy con `es_core_news_md`, GitHub |
 | 12 | Docente | Se le envía `docs/especificacion_subconjunto.md` antes de programar |
 | 13 | Forma del árbol | El árbol sigue exactamente la BNF de `grammars/cpp.gram`, con los no terminales `...Tail` y las hojas ε |
 | 14 | Idioma | Código en inglés; documentación y mensajes al usuario en español (detalle en la sección 3) |
@@ -126,7 +126,7 @@ Dueño: P4.
 - `EOF` no se escribe en la gramática: el verificador lo usa como `$`.
 - Las líneas que empiezan con `#` son comentarios.
 
-El verificador se ejecuta con `python -m verifier grammars/cpp.gram` e imprime FIRST, FOLLOW, la tabla y los conflictos. Cada conflicto se reporta así:
+El verificador se ejecuta con `uv run python -m verifier grammars/cpp.gram` e imprime FIRST, FOLLOW, la tabla y los conflictos. Cada conflicto se reporta así:
 
 ```
 Conflict at M[ElsePart, ELSE]:
@@ -143,7 +143,7 @@ Dueño: P1. La gramática existe en dos archivos con el mismo contenido, regla p
 | `grammars/cpp.gram` | `AdditiveExpr -> MultExpr AdditiveExprTail` | Lo lee el verificador |
 | `grammars/cpp.bnf` | `<additive_expr> ::= <mult_expr> <additive_expr_tail>`, la notación de clase | Lo leemos nosotros; va en el informe y en la presentación |
 
-`cpp.gram` es la fuente. Si cambia, se regenera `cpp.bnf` con `python -m verifier grammars/cpp.gram --class-notation`. `cpp.bnf` incluye al final el nivel léxico (identificadores, números, cadenas), que reconoce el lexer y no el parser.
+`cpp.gram` es la fuente. Si cambia, se regenera `cpp.bnf` con `uv run python -m verifier grammars/cpp.gram --class-notation`. `cpp.bnf` incluye al final el nivel léxico (identificadores, números, cadenas), que reconoce el lexer y no el parser.
 
 - **Tamaño.** 68 no terminales, 144 producciones y 63 terminales, sin contar `EOF`.
 - **Conflictos.** Uno solo, `M[ElsePart, ELSE]`. El parser lo resuelve eligiendo `ElsePart -> ELSE Stmt`.
@@ -182,6 +182,8 @@ class Node:
         self.token = token           # only on terminal leaves
 ```
 
+Además tiene `is_epsilon()`, `leaves()`, que devuelve los tokens de las hojas de izquierda a derecha sin las ε, y `pretty()`, que devuelve el árbol como texto con sangría para depurar. La visualización para la demo es la de P2.
+
 | Situación | Cómo se construye el nodo |
 |---|---|
 | No terminal | `Node("AdditiveExpr", children)` |
@@ -192,7 +194,7 @@ API del parser:
 
 - `Parser(tokens).parse() -> Node` devuelve la raíz con etiqueta `Program`.
 - `minicpp.analyze(code: str) -> Node` une el lexer y el parser.
-- `python -m minicpp file.cpp` imprime "Programa válido" y el árbol, o el mensaje de error. Con `--no-tree` omite el árbol.
+- `uv run python -m minicpp file.cpp` imprime "Programa válido" y el árbol, o el mensaje de error. Con `--no-tree` omite el árbol.
 
 ### Convenciones del parser
 
@@ -226,7 +228,8 @@ Error sintáctico en línea 5, columna 12: se esperaba SEMICOLON y se encontró 
 | Componente | Archivo | Dueño |
 |---|---|---|
 | Lexer | `tests/test_lexer.py` | P2 |
-| Parser | `tests/test_parser.py` y `cases/` | P3 |
+| Parser (pruebas unitarias por función) | `tests/test_parser_units.py` | P1 |
+| Parser (programas completos) | `tests/test_parser.py` y `cases/` | P3 |
 | Verificador | `tests/test_verifier.py` y `grammars/test_grammars/` | P4 |
 | Español | `tests/test_spanish.py` y `spanish/sentences.tsv` | P5 |
 
@@ -252,7 +255,10 @@ Error sintáctico en línea 5, columna 12: se esperaba SEMICOLON y se encontró 
 .
 ├── README.md                     P2
 ├── CONTRATO.md                   todos
-├── requirements.txt              P2
+├── pyproject.toml                P2 (dependencias, las administra uv)
+├── uv.lock                       versiones exactas, lo genera uv
+├── requirements.txt              lo genera uv, no se edita a mano
+├── .python-version               P2 (3.12)
 ├── .gitignore                    P2
 ├── docs/
 │   ├── especificacion_subconjunto.md   P5
@@ -287,6 +293,7 @@ Error sintáctico en línea 5, columna 12: se esperaba SEMICOLON y se encontró 
 │   └── invalid/                  P3
 ├── tests/
 │   ├── test_lexer.py             P2
+│   ├── test_parser_units.py      P1 (pruebas unitarias por función)
 │   ├── test_parser.py            P3
 │   ├── test_verifier.py          P4
 │   └── test_spanish.py           P5
@@ -295,12 +302,34 @@ Error sintáctico en línea 5, columna 12: se esperaba SEMICOLON y se encontró 
     └── programs/                 P2
 ```
 
+### Entorno con uv
+
+Todo el grupo usa uv en lugar de `pip` y `venv`. uv crea el entorno virtual, instala Python 3.12 si hace falta y fija las versiones exactas en `uv.lock`, así que todos tienen las mismas dependencias.
+
+| Para | Comando |
+|---|---|
+| Instalar uv (Mac o Linux) | `curl -LsSf https://astral.sh/uv/install.sh \| sh` |
+| Instalar uv (Windows, PowerShell) | `powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 \| iex"` |
+| Crear el entorno después de clonar o hacer pull | `uv sync` |
+| Correr todas las pruebas | `uv run pytest` |
+| Correr las pruebas de un archivo | `uv run pytest tests/test_parser_units.py` |
+| Analizar un programa | `uv run python -m minicpp archivo.cpp` |
+| Correr el verificador | `uv run python -m verifier grammars/cpp.gram` |
+| Agregar una dependencia | `uv add nombre` (o `uv add --dev nombre` si solo sirve para desarrollo) |
+| Regenerar `requirements.txt` | `uv export --format requirements-txt --no-hashes --no-emit-project -o requirements.txt` |
+
+- `uv sync` crea `.venv/` e instala la versión de Python de `.python-version` si no está en la computadora.
+- Solo agrega dependencias el dueño del componente que las necesita: NLTK lo agrega P2 y spaCy lo agrega P5. El cambio en `pyproject.toml` y `uv.lock` va en un pull request propio.
+- Cada vez que se agrega una dependencia, se regenera `requirements.txt` y se suben juntos `pyproject.toml`, `uv.lock` y `requirements.txt`.
+- `requirements.txt` existe para ver las dependencias de un vistazo y para quien no tenga uv: `pip install -r requirements.txt` instala lo mismo.
+- El modelo de spaCy se agrega como dependencia con la URL de su archivo `.whl` (`uv add <url del modelo>`), porque `spacy download` usa pip y no funciona dentro de un entorno de uv. La versión del modelo debe coincidir con la versión de spaCy.
+
 ### Forma de trabajo con Git
 
 - `main` solo recibe cambios por pull request.
 - Cada persona trabaja en su rama: `p1-parser`, `p2-lexer`, `p3-tests`, `p4-verifier`, `p5-spanish`.
 - Los mensajes de commit van en inglés y empiezan con el componente, por ejemplo `lexer: recognize compound operators`.
-- Las versiones de `requirements.txt` se fijan con `pip freeze` cuando P2 cree el entorno.
+- `pyproject.toml`, `uv.lock`, `requirements.txt` y `.python-version` se suben al repo. `.venv/` no se sube.
 
 ## 11. Reparto
 
