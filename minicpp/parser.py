@@ -7,21 +7,48 @@ from minicpp.tokens import Token
 # ---------- Token groups used to choose between alternatives ----------
 # Each group comes from a FIRST set of grammars/cpp.gram.
 
-LITERALS = ("INT_LITERAL", "FLOAT_LITERAL", "STRING_LITERAL", "CHAR_LITERAL", "TRUE", "FALSE")  # FIRST(Literal)
-PRIMARY_START = ("ID", *LITERALS, "LPAREN")                                 # FIRST(Primary)
-ASSIGN_OPS = ("ASSIGN", "PLUS_ASSIGN", "MINUS_ASSIGN", "STAR_ASSIGN", "SLASH_ASSIGN", "PERCENT_ASSIGN")  # FIRST(AssignOp)
-EQUALITY_OPS = ("EQUAL", "NOT_EQUAL")                                       # FIRST(EqualityOp)
-RELATIONAL_OPS = ("LESS", "GREATER", "LESS_EQUAL", "GREATER_EQUAL")         # FIRST(RelationalOp)
-ADDITIVE_OPS = ("PLUS", "MINUS")                                            # FIRST(AdditiveOp)
-MULT_OPS = ("STAR", "SLASH", "PERCENT")                                     # FIRST(MultOp)
-UNARY_OPS = ("NOT", "MINUS", "PLUS", "INCREMENT", "DECREMENT")              # FIRST(UnaryOp)
-INCREMENT_OPS = ("INCREMENT", "DECREMENT")                                  # ++ and --
-EXPR_START = (*UNARY_OPS, *PRIMARY_START)                                   # FIRST(Expr)
-TYPES = ("INT", "FLOAT", "DOUBLE", "CHAR", "BOOL", "STRING")                # FIRST(Type)
-CASE_LABELS = ("INT_LITERAL", "CHAR_LITERAL", "TRUE", "FALSE")              # CaseLabel without MINUS
-STMT_START = (                                                              # FIRST(Stmt)
-    *TYPES, "IF", "WHILE", "DO", "FOR", "SWITCH", "BREAK", "CONTINUE",
-    "RETURN", "COUT", "CIN", "LBRACE", "SEMICOLON", *EXPR_START,
+LITERALS = (
+    "INT_LITERAL",
+    "FLOAT_LITERAL",
+    "STRING_LITERAL",
+    "CHAR_LITERAL",
+    "TRUE",
+    "FALSE",
+)  # FIRST(Literal)
+PRIMARY_START = ("ID", *LITERALS, "LPAREN")  # FIRST(Primary)
+ASSIGN_OPS = (
+    "ASSIGN",
+    "PLUS_ASSIGN",
+    "MINUS_ASSIGN",
+    "STAR_ASSIGN",
+    "SLASH_ASSIGN",
+    "PERCENT_ASSIGN",
+)  # FIRST(AssignOp)
+EQUALITY_OPS = ("EQUAL", "NOT_EQUAL")  # FIRST(EqualityOp)
+RELATIONAL_OPS = ("LESS", "GREATER", "LESS_EQUAL", "GREATER_EQUAL")  # FIRST(RelationalOp)
+ADDITIVE_OPS = ("PLUS", "MINUS")  # FIRST(AdditiveOp)
+MULT_OPS = ("STAR", "SLASH", "PERCENT")  # FIRST(MultOp)
+UNARY_OPS = ("NOT", "MINUS", "PLUS", "INCREMENT", "DECREMENT")  # FIRST(UnaryOp)
+INCREMENT_OPS = ("INCREMENT", "DECREMENT")  # ++ and --
+EXPR_START = (*UNARY_OPS, *PRIMARY_START)  # FIRST(Expr)
+TYPES = ("INT", "FLOAT", "DOUBLE", "CHAR", "BOOL", "STRING")  # FIRST(Type)
+GLOBAL_START = (*TYPES, "VOID")  # FIRST(GlobalDecl)
+CASE_LABELS = ("INT_LITERAL", "CHAR_LITERAL", "TRUE", "FALSE")  # CaseLabel without MINUS
+STMT_START = (  # FIRST(Stmt)
+    *TYPES,
+    "IF",
+    "WHILE",
+    "DO",
+    "FOR",
+    "SWITCH",
+    "BREAK",
+    "CONTINUE",
+    "RETURN",
+    "COUT",
+    "CIN",
+    "LBRACE",
+    "SEMICOLON",
+    *EXPR_START,
 )
 
 
@@ -35,8 +62,20 @@ class Parser:
     """
 
     def __init__(self, tokens: list[Token]):
-        self.tokens = tokens   # always ends with an EOF token
-        self.pos = 0           # index of the current token
+        self.tokens = tokens  # always ends with an EOF token
+        self.pos = 0  # index of the current token
+
+    def parse(self) -> Node:
+        """Parse a whole program and return the root of the parse tree.
+
+        After Program, the only token left must be EOF. Otherwise there is
+        something that cannot start a global declaration, so the error lists
+        FIRST(GlobalDecl) plus EOF as the expected tokens.
+        """
+        tree = self.program()
+        if not self.check("EOF"):
+            self.error([*GLOBAL_START, "EOF"])
+        return tree
 
     # ---------- Helpers ----------
 
@@ -88,6 +127,85 @@ class Parser:
         offending = tokens[1] if tokens[0].type == "ID" else tokens[0]
         raise SyntacticError(offending.line, offending.column, ["ID"], offending)
 
+    # ---------- Program and header ----------
+
+    def program(self) -> Node:
+        """Program -> Header GlobalList"""
+        return Node("Program", [self.header(), self.global_list()])
+
+    def header(self) -> Node:
+        """Header -> IncludeList UsingStd"""
+        return Node("Header", [self.include_list(), self.using_std()])
+
+    def include_list(self) -> Node:
+        """IncludeList -> INCLUDE IncludeList | ε"""
+        if self.check("INCLUDE"):
+            return Node("IncludeList", [self.consume("INCLUDE"), self.include_list()])
+        return Node("IncludeList", [self.epsilon()])
+
+    def using_std(self) -> Node:
+        """UsingStd -> USING NAMESPACE STD SEMICOLON | ε"""
+        if self.check("USING"):
+            return Node(
+                "UsingStd",
+                [
+                    self.consume("USING"),
+                    self.consume("NAMESPACE"),
+                    self.consume("STD"),
+                    self.consume("SEMICOLON"),
+                ],
+            )
+        return Node("UsingStd", [self.epsilon()])
+
+    # ---------- Global declarations and functions ----------
+
+    def global_list(self) -> Node:
+        """GlobalList -> GlobalDecl GlobalList | ε"""
+        if self.check(*GLOBAL_START):
+            return Node("GlobalList", [self.global_decl(), self.global_list()])
+        return Node("GlobalList", [self.epsilon()])
+
+    def global_decl(self) -> Node:
+        """GlobalDecl -> Type ID GlobalDeclTail | VOID ID LPAREN Params RPAREN Block"""
+        if self.check("VOID"):
+            return Node(
+                "GlobalDecl",
+                [
+                    self.consume("VOID"),
+                    self.consume("ID"),
+                    self.consume("LPAREN"),
+                    self.params(),
+                    self.consume("RPAREN"),
+                    self.block(),
+                ],
+            )
+        return Node("GlobalDecl", [self.type(), self.consume("ID"), self.global_decl_tail()])
+
+    def global_decl_tail(self) -> Node:
+        """GlobalDeclTail -> LPAREN Params RPAREN Block | VarDeclTail SEMICOLON"""
+        if self.check("LPAREN"):
+            return Node(
+                "GlobalDeclTail",
+                [self.consume("LPAREN"), self.params(), self.consume("RPAREN"), self.block()],
+            )
+        return Node("GlobalDeclTail", [self.var_decl_tail(), self.consume("SEMICOLON")])
+
+    def params(self) -> Node:
+        """Params -> Param ParamsTail | ε"""
+        if self.check(*TYPES):
+            return Node("Params", [self.param(), self.params_tail()])
+        return Node("Params", [self.epsilon()])
+
+    def params_tail(self) -> Node:
+        """ParamsTail -> COMMA Param ParamsTail | ε"""
+        if self.check("COMMA"):
+            return Node("ParamsTail", [self.consume("COMMA"), self.param(), self.params_tail()])
+        return Node("ParamsTail", [self.epsilon()])
+
+    def param(self) -> Node:
+        """Param -> Type ID"""
+        return Node("Param", [self.type(), self.consume("ID")])
+
     # ---------- Variable declarations ----------
 
     def type(self) -> Node:
@@ -107,14 +225,23 @@ class Parser:
     def declarator_list(self) -> Node:
         """DeclaratorList -> COMMA ID Initializer DeclaratorList | ε"""
         if self.check("COMMA"):
-            return Node("DeclaratorList", [
-                self.consume("COMMA"), self.consume("ID"), self.initializer(), self.declarator_list(),
-            ])
+            return Node(
+                "DeclaratorList",
+                [
+                    self.consume("COMMA"),
+                    self.consume("ID"),
+                    self.initializer(),
+                    self.declarator_list(),
+                ],
+            )
         return Node("DeclaratorList", [self.epsilon()])
 
     def local_decl(self) -> Node:
         """LocalDecl -> Type ID VarDeclTail SEMICOLON"""
-        return Node("LocalDecl", [self.type(), self.consume("ID"), self.var_decl_tail(), self.consume("SEMICOLON")])
+        return Node(
+            "LocalDecl",
+            [self.type(), self.consume("ID"), self.var_decl_tail(), self.consume("SEMICOLON")],
+        )
 
     # ---------- Statements ----------
 
@@ -173,10 +300,17 @@ class Parser:
 
     def if_stmt(self) -> Node:
         """IfStmt -> IF LPAREN Expr RPAREN Stmt ElsePart"""
-        return Node("IfStmt", [
-            self.consume("IF"), self.consume("LPAREN"), self.expr(), self.consume("RPAREN"),
-            self.stmt(), self.else_part(),
-        ])
+        return Node(
+            "IfStmt",
+            [
+                self.consume("IF"),
+                self.consume("LPAREN"),
+                self.expr(),
+                self.consume("RPAREN"),
+                self.stmt(),
+                self.else_part(),
+            ],
+        )
 
     def else_part(self) -> Node:
         """ElsePart -> ELSE Stmt | ε
@@ -192,23 +326,47 @@ class Parser:
 
     def while_stmt(self) -> Node:
         """WhileStmt -> WHILE LPAREN Expr RPAREN Stmt"""
-        return Node("WhileStmt", [
-            self.consume("WHILE"), self.consume("LPAREN"), self.expr(), self.consume("RPAREN"), self.stmt(),
-        ])
+        return Node(
+            "WhileStmt",
+            [
+                self.consume("WHILE"),
+                self.consume("LPAREN"),
+                self.expr(),
+                self.consume("RPAREN"),
+                self.stmt(),
+            ],
+        )
 
     def do_while_stmt(self) -> Node:
         """DoWhileStmt -> DO Stmt WHILE LPAREN Expr RPAREN SEMICOLON"""
-        return Node("DoWhileStmt", [
-            self.consume("DO"), self.stmt(), self.consume("WHILE"), self.consume("LPAREN"),
-            self.expr(), self.consume("RPAREN"), self.consume("SEMICOLON"),
-        ])
+        return Node(
+            "DoWhileStmt",
+            [
+                self.consume("DO"),
+                self.stmt(),
+                self.consume("WHILE"),
+                self.consume("LPAREN"),
+                self.expr(),
+                self.consume("RPAREN"),
+                self.consume("SEMICOLON"),
+            ],
+        )
 
     def for_stmt(self) -> Node:
         """ForStmt -> FOR LPAREN ForInit OptExpr SEMICOLON OptExpr RPAREN Stmt"""
-        return Node("ForStmt", [
-            self.consume("FOR"), self.consume("LPAREN"), self.for_init(), self.opt_expr(),
-            self.consume("SEMICOLON"), self.opt_expr(), self.consume("RPAREN"), self.stmt(),
-        ])
+        return Node(
+            "ForStmt",
+            [
+                self.consume("FOR"),
+                self.consume("LPAREN"),
+                self.for_init(),
+                self.opt_expr(),
+                self.consume("SEMICOLON"),
+                self.opt_expr(),
+                self.consume("RPAREN"),
+                self.stmt(),
+            ],
+        )
 
     def for_init(self) -> Node:
         """ForInit -> LocalDecl | OptExpr SEMICOLON"""
@@ -224,10 +382,18 @@ class Parser:
 
     def switch_stmt(self) -> Node:
         """SwitchStmt -> SWITCH LPAREN Expr RPAREN LBRACE CaseList RBRACE"""
-        return Node("SwitchStmt", [
-            self.consume("SWITCH"), self.consume("LPAREN"), self.expr(), self.consume("RPAREN"),
-            self.consume("LBRACE"), self.case_list(), self.consume("RBRACE"),
-        ])
+        return Node(
+            "SwitchStmt",
+            [
+                self.consume("SWITCH"),
+                self.consume("LPAREN"),
+                self.expr(),
+                self.consume("RPAREN"),
+                self.consume("LBRACE"),
+                self.case_list(),
+                self.consume("RBRACE"),
+            ],
+        )
 
     def case_list(self) -> Node:
         """CaseList -> Case CaseList | ε"""
@@ -238,7 +404,10 @@ class Parser:
     def case(self) -> Node:
         """Case -> CASE CaseLabel COLON StmtList | DEFAULT COLON StmtList"""
         if self.check("CASE"):
-            return Node("Case", [self.consume("CASE"), self.case_label(), self.consume("COLON"), self.stmt_list()])
+            return Node(
+                "Case",
+                [self.consume("CASE"), self.case_label(), self.consume("COLON"), self.stmt_list()],
+            )
         return Node("Case", [self.consume("DEFAULT"), self.consume("COLON"), self.stmt_list()])
 
     def case_label(self) -> Node:
@@ -259,21 +428,31 @@ class Parser:
 
     def return_stmt(self) -> Node:
         """ReturnStmt -> RETURN OptExpr SEMICOLON"""
-        return Node("ReturnStmt", [self.consume("RETURN"), self.opt_expr(), self.consume("SEMICOLON")])
+        return Node(
+            "ReturnStmt", [self.consume("RETURN"), self.opt_expr(), self.consume("SEMICOLON")]
+        )
 
     # ---------- Input and output ----------
 
     def cout_stmt(self) -> Node:
         """CoutStmt -> COUT SHIFT_LEFT CoutItem CoutTail SEMICOLON"""
-        return Node("CoutStmt", [
-            self.consume("COUT"), self.consume("SHIFT_LEFT"), self.cout_item(), self.cout_tail(),
-            self.consume("SEMICOLON"),
-        ])
+        return Node(
+            "CoutStmt",
+            [
+                self.consume("COUT"),
+                self.consume("SHIFT_LEFT"),
+                self.cout_item(),
+                self.cout_tail(),
+                self.consume("SEMICOLON"),
+            ],
+        )
 
     def cout_tail(self) -> Node:
         """CoutTail -> SHIFT_LEFT CoutItem CoutTail | ε"""
         if self.check("SHIFT_LEFT"):
-            return Node("CoutTail", [self.consume("SHIFT_LEFT"), self.cout_item(), self.cout_tail()])
+            return Node(
+                "CoutTail", [self.consume("SHIFT_LEFT"), self.cout_item(), self.cout_tail()]
+            )
         return Node("CoutTail", [self.epsilon()])
 
     def cout_item(self) -> Node:
@@ -284,15 +463,23 @@ class Parser:
 
     def cin_stmt(self) -> Node:
         """CinStmt -> CIN SHIFT_RIGHT ID CinTail SEMICOLON"""
-        return Node("CinStmt", [
-            self.consume("CIN"), self.consume("SHIFT_RIGHT"), self.consume("ID"), self.cin_tail(),
-            self.consume("SEMICOLON"),
-        ])
+        return Node(
+            "CinStmt",
+            [
+                self.consume("CIN"),
+                self.consume("SHIFT_RIGHT"),
+                self.consume("ID"),
+                self.cin_tail(),
+                self.consume("SEMICOLON"),
+            ],
+        )
 
     def cin_tail(self) -> Node:
         """CinTail -> SHIFT_RIGHT ID CinTail | ε"""
         if self.check("SHIFT_RIGHT"):
-            return Node("CinTail", [self.consume("SHIFT_RIGHT"), self.consume("ID"), self.cin_tail()])
+            return Node(
+                "CinTail", [self.consume("SHIFT_RIGHT"), self.consume("ID"), self.cin_tail()]
+            )
         return Node("CinTail", [self.epsilon()])
 
     # ---------- Expressions ----------
@@ -315,7 +502,8 @@ class Parser:
         return Node("AssignTail", [self.epsilon()])
 
     def assign_op(self) -> Node:
-        """AssignOp -> ASSIGN | PLUS_ASSIGN | MINUS_ASSIGN | STAR_ASSIGN | SLASH_ASSIGN | PERCENT_ASSIGN"""
+        """AssignOp -> ASSIGN | PLUS_ASSIGN | MINUS_ASSIGN | STAR_ASSIGN | SLASH_ASSIGN
+        | PERCENT_ASSIGN"""
         return Node("AssignOp", [self.consume_one_of(ASSIGN_OPS)])
 
     def or_expr(self) -> Node:
@@ -335,7 +523,9 @@ class Parser:
     def and_expr_tail(self) -> Node:
         """AndExprTail -> AND EqualityExpr AndExprTail | ε"""
         if self.check("AND"):
-            return Node("AndExprTail", [self.consume("AND"), self.equality_expr(), self.and_expr_tail()])
+            return Node(
+                "AndExprTail", [self.consume("AND"), self.equality_expr(), self.and_expr_tail()]
+            )
         return Node("AndExprTail", [self.epsilon()])
 
     def equality_expr(self) -> Node:
@@ -345,7 +535,10 @@ class Parser:
     def equality_expr_tail(self) -> Node:
         """EqualityExprTail -> EqualityOp RelationalExpr EqualityExprTail | ε"""
         if self.check(*EQUALITY_OPS):
-            return Node("EqualityExprTail", [self.equality_op(), self.relational_expr(), self.equality_expr_tail()])
+            return Node(
+                "EqualityExprTail",
+                [self.equality_op(), self.relational_expr(), self.equality_expr_tail()],
+            )
         return Node("EqualityExprTail", [self.epsilon()])
 
     def equality_op(self) -> Node:
@@ -359,7 +552,10 @@ class Parser:
     def relational_expr_tail(self) -> Node:
         """RelationalExprTail -> RelationalOp AdditiveExpr RelationalExprTail | ε"""
         if self.check(*RELATIONAL_OPS):
-            return Node("RelationalExprTail", [self.relational_op(), self.additive_expr(), self.relational_expr_tail()])
+            return Node(
+                "RelationalExprTail",
+                [self.relational_op(), self.additive_expr(), self.relational_expr_tail()],
+            )
         return Node("RelationalExprTail", [self.epsilon()])
 
     def relational_op(self) -> Node:
@@ -373,7 +569,10 @@ class Parser:
     def additive_expr_tail(self) -> Node:
         """AdditiveExprTail -> AdditiveOp MultExpr AdditiveExprTail | ε"""
         if self.check(*ADDITIVE_OPS):
-            return Node("AdditiveExprTail", [self.additive_op(), self.mult_expr(), self.additive_expr_tail()])
+            return Node(
+                "AdditiveExprTail",
+                [self.additive_op(), self.mult_expr(), self.additive_expr_tail()],
+            )
         return Node("AdditiveExprTail", [self.epsilon()])
 
     def additive_op(self) -> Node:
