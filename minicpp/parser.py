@@ -16,6 +16,13 @@ ADDITIVE_OPS = ("PLUS", "MINUS")                                            # FI
 MULT_OPS = ("STAR", "SLASH", "PERCENT")                                     # FIRST(MultOp)
 UNARY_OPS = ("NOT", "MINUS", "PLUS", "INCREMENT", "DECREMENT")              # FIRST(UnaryOp)
 INCREMENT_OPS = ("INCREMENT", "DECREMENT")                                  # ++ and --
+EXPR_START = (*UNARY_OPS, *PRIMARY_START)                                   # FIRST(Expr)
+TYPES = ("INT", "FLOAT", "DOUBLE", "CHAR", "BOOL", "STRING")                # FIRST(Type)
+CASE_LABELS = ("INT_LITERAL", "CHAR_LITERAL", "TRUE", "FALSE")              # CaseLabel without MINUS
+STMT_START = (                                                              # FIRST(Stmt)
+    *TYPES, "IF", "WHILE", "DO", "FOR", "SWITCH", "BREAK", "CONTINUE",
+    "RETURN", "COUT", "CIN", "LBRACE", "SEMICOLON", *EXPR_START,
+)
 
 
 class Parser:
@@ -31,7 +38,7 @@ class Parser:
         self.tokens = tokens   # always ends with an EOF token
         self.pos = 0           # index of the current token
 
-    # Helpers 
+    # ---------- Helpers ----------
 
     def current(self) -> Token:
         """Return the lookahead token without consuming it."""
@@ -56,7 +63,6 @@ class Parser:
         """Consume the current token if it is any of the given types."""
         if not self.check(*token_types):
             self.error(list(token_types))
-
         return self.consume(self.current().type)
 
     def epsilon(self) -> Node:
@@ -82,7 +88,214 @@ class Parser:
         offending = tokens[1] if tokens[0].type == "ID" else tokens[0]
         raise SyntacticError(offending.line, offending.column, ["ID"], offending)
 
-    # Expressions
+    # ---------- Variable declarations ----------
+
+    def type(self) -> Node:
+        """Type -> INT | FLOAT | DOUBLE | CHAR | BOOL | STRING"""
+        return Node("Type", [self.consume_one_of(TYPES)])
+
+    def var_decl_tail(self) -> Node:
+        """VarDeclTail -> Initializer DeclaratorList"""
+        return Node("VarDeclTail", [self.initializer(), self.declarator_list()])
+
+    def initializer(self) -> Node:
+        """Initializer -> ASSIGN Expr | ε"""
+        if self.check("ASSIGN"):
+            return Node("Initializer", [self.consume("ASSIGN"), self.expr()])
+        return Node("Initializer", [self.epsilon()])
+
+    def declarator_list(self) -> Node:
+        """DeclaratorList -> COMMA ID Initializer DeclaratorList | ε"""
+        if self.check("COMMA"):
+            return Node("DeclaratorList", [
+                self.consume("COMMA"), self.consume("ID"), self.initializer(), self.declarator_list(),
+            ])
+        return Node("DeclaratorList", [self.epsilon()])
+
+    def local_decl(self) -> Node:
+        """LocalDecl -> Type ID VarDeclTail SEMICOLON"""
+        return Node("LocalDecl", [self.type(), self.consume("ID"), self.var_decl_tail(), self.consume("SEMICOLON")])
+
+    # ---------- Statements ----------
+
+    def block(self) -> Node:
+        """Block -> LBRACE StmtList RBRACE"""
+        return Node("Block", [self.consume("LBRACE"), self.stmt_list(), self.consume("RBRACE")])
+
+    def stmt_list(self) -> Node:
+        """StmtList -> Stmt StmtList | ε"""
+        if self.check(*STMT_START):
+            return Node("StmtList", [self.stmt(), self.stmt_list()])
+        return Node("StmtList", [self.epsilon()])
+
+    def stmt(self) -> Node:
+        """Stmt -> LocalDecl | ExprStmt | IfStmt | WhileStmt | DoWhileStmt | ForStmt | SwitchStmt
+        | BreakStmt | ContinueStmt | ReturnStmt | CoutStmt | CinStmt | Block | EmptyStmt"""
+        if self.check(*TYPES):
+            child = self.local_decl()
+        elif self.check("IF"):
+            child = self.if_stmt()
+        elif self.check("WHILE"):
+            child = self.while_stmt()
+        elif self.check("DO"):
+            child = self.do_while_stmt()
+        elif self.check("FOR"):
+            child = self.for_stmt()
+        elif self.check("SWITCH"):
+            child = self.switch_stmt()
+        elif self.check("BREAK"):
+            child = self.break_stmt()
+        elif self.check("CONTINUE"):
+            child = self.continue_stmt()
+        elif self.check("RETURN"):
+            child = self.return_stmt()
+        elif self.check("COUT"):
+            child = self.cout_stmt()
+        elif self.check("CIN"):
+            child = self.cin_stmt()
+        elif self.check("LBRACE"):
+            child = self.block()
+        elif self.check("SEMICOLON"):
+            child = self.empty_stmt()
+        elif self.check(*EXPR_START):
+            child = self.expr_stmt()
+        else:
+            self.error(list(STMT_START))
+        return Node("Stmt", [child])
+
+    def expr_stmt(self) -> Node:
+        """ExprStmt -> Expr SEMICOLON"""
+        return Node("ExprStmt", [self.expr(), self.consume("SEMICOLON")])
+
+    def empty_stmt(self) -> Node:
+        """EmptyStmt -> SEMICOLON"""
+        return Node("EmptyStmt", [self.consume("SEMICOLON")])
+
+    def if_stmt(self) -> Node:
+        """IfStmt -> IF LPAREN Expr RPAREN Stmt ElsePart"""
+        return Node("IfStmt", [
+            self.consume("IF"), self.consume("LPAREN"), self.expr(), self.consume("RPAREN"),
+            self.stmt(), self.else_part(),
+        ])
+
+    def else_part(self) -> Node:
+        """ElsePart -> ELSE Stmt | ε
+
+        This is the only LL(1) conflict of the grammar (dangling else):
+        ELSE is in FIRST(ELSE Stmt) and also in FOLLOW(ElsePart). Choosing
+        ELSE Stmt whenever ELSE appears binds each else to the nearest if,
+        as C++ does.
+        """
+        if self.check("ELSE"):
+            return Node("ElsePart", [self.consume("ELSE"), self.stmt()])
+        return Node("ElsePart", [self.epsilon()])
+
+    def while_stmt(self) -> Node:
+        """WhileStmt -> WHILE LPAREN Expr RPAREN Stmt"""
+        return Node("WhileStmt", [
+            self.consume("WHILE"), self.consume("LPAREN"), self.expr(), self.consume("RPAREN"), self.stmt(),
+        ])
+
+    def do_while_stmt(self) -> Node:
+        """DoWhileStmt -> DO Stmt WHILE LPAREN Expr RPAREN SEMICOLON"""
+        return Node("DoWhileStmt", [
+            self.consume("DO"), self.stmt(), self.consume("WHILE"), self.consume("LPAREN"),
+            self.expr(), self.consume("RPAREN"), self.consume("SEMICOLON"),
+        ])
+
+    def for_stmt(self) -> Node:
+        """ForStmt -> FOR LPAREN ForInit OptExpr SEMICOLON OptExpr RPAREN Stmt"""
+        return Node("ForStmt", [
+            self.consume("FOR"), self.consume("LPAREN"), self.for_init(), self.opt_expr(),
+            self.consume("SEMICOLON"), self.opt_expr(), self.consume("RPAREN"), self.stmt(),
+        ])
+
+    def for_init(self) -> Node:
+        """ForInit -> LocalDecl | OptExpr SEMICOLON"""
+        if self.check(*TYPES):
+            return Node("ForInit", [self.local_decl()])
+        return Node("ForInit", [self.opt_expr(), self.consume("SEMICOLON")])
+
+    def opt_expr(self) -> Node:
+        """OptExpr -> Expr | ε"""
+        if self.check(*EXPR_START):
+            return Node("OptExpr", [self.expr()])
+        return Node("OptExpr", [self.epsilon()])
+
+    def switch_stmt(self) -> Node:
+        """SwitchStmt -> SWITCH LPAREN Expr RPAREN LBRACE CaseList RBRACE"""
+        return Node("SwitchStmt", [
+            self.consume("SWITCH"), self.consume("LPAREN"), self.expr(), self.consume("RPAREN"),
+            self.consume("LBRACE"), self.case_list(), self.consume("RBRACE"),
+        ])
+
+    def case_list(self) -> Node:
+        """CaseList -> Case CaseList | ε"""
+        if self.check("CASE", "DEFAULT"):
+            return Node("CaseList", [self.case(), self.case_list()])
+        return Node("CaseList", [self.epsilon()])
+
+    def case(self) -> Node:
+        """Case -> CASE CaseLabel COLON StmtList | DEFAULT COLON StmtList"""
+        if self.check("CASE"):
+            return Node("Case", [self.consume("CASE"), self.case_label(), self.consume("COLON"), self.stmt_list()])
+        return Node("Case", [self.consume("DEFAULT"), self.consume("COLON"), self.stmt_list()])
+
+    def case_label(self) -> Node:
+        """CaseLabel -> INT_LITERAL | CHAR_LITERAL | MINUS INT_LITERAL | TRUE | FALSE"""
+        if self.check("MINUS"):
+            return Node("CaseLabel", [self.consume("MINUS"), self.consume("INT_LITERAL")])
+        if self.check(*CASE_LABELS):
+            return Node("CaseLabel", [self.consume_one_of(CASE_LABELS)])
+        self.error([*CASE_LABELS, "MINUS"])
+
+    def break_stmt(self) -> Node:
+        """BreakStmt -> BREAK SEMICOLON"""
+        return Node("BreakStmt", [self.consume("BREAK"), self.consume("SEMICOLON")])
+
+    def continue_stmt(self) -> Node:
+        """ContinueStmt -> CONTINUE SEMICOLON"""
+        return Node("ContinueStmt", [self.consume("CONTINUE"), self.consume("SEMICOLON")])
+
+    def return_stmt(self) -> Node:
+        """ReturnStmt -> RETURN OptExpr SEMICOLON"""
+        return Node("ReturnStmt", [self.consume("RETURN"), self.opt_expr(), self.consume("SEMICOLON")])
+
+    # ---------- Input and output ----------
+
+    def cout_stmt(self) -> Node:
+        """CoutStmt -> COUT SHIFT_LEFT CoutItem CoutTail SEMICOLON"""
+        return Node("CoutStmt", [
+            self.consume("COUT"), self.consume("SHIFT_LEFT"), self.cout_item(), self.cout_tail(),
+            self.consume("SEMICOLON"),
+        ])
+
+    def cout_tail(self) -> Node:
+        """CoutTail -> SHIFT_LEFT CoutItem CoutTail | ε"""
+        if self.check("SHIFT_LEFT"):
+            return Node("CoutTail", [self.consume("SHIFT_LEFT"), self.cout_item(), self.cout_tail()])
+        return Node("CoutTail", [self.epsilon()])
+
+    def cout_item(self) -> Node:
+        """CoutItem -> ENDL | AdditiveExpr"""
+        if self.check("ENDL"):
+            return Node("CoutItem", [self.consume("ENDL")])
+        return Node("CoutItem", [self.additive_expr()])
+
+    def cin_stmt(self) -> Node:
+        """CinStmt -> CIN SHIFT_RIGHT ID CinTail SEMICOLON"""
+        return Node("CinStmt", [
+            self.consume("CIN"), self.consume("SHIFT_RIGHT"), self.consume("ID"), self.cin_tail(),
+            self.consume("SEMICOLON"),
+        ])
+
+    def cin_tail(self) -> Node:
+        """CinTail -> SHIFT_RIGHT ID CinTail | ε"""
+        if self.check("SHIFT_RIGHT"):
+            return Node("CinTail", [self.consume("SHIFT_RIGHT"), self.consume("ID"), self.cin_tail()])
+        return Node("CinTail", [self.epsilon()])
+
+    # ---------- Expressions ----------
 
     def expr(self) -> Node:
         """Expr -> AssignExpr"""
