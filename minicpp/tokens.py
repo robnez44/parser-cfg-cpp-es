@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 
+
 @dataclass
 class Token:
     """A lexical unit produced by the lexer."""
