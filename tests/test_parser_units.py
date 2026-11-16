@@ -62,7 +62,12 @@ def test_leaves_skip_epsilon():
 
 SYMBOLS = {
     "+": "PLUS", "-": "MINUS", "*": "STAR", "/": "SLASH", "%": "PERCENT",
-    "++": "INCREMENT", "--": "DECREMENT", "!": "NOT",
+    "++": "INCREMENT", "--": "DECREMENT",
+    "=": "ASSIGN", "+=": "PLUS_ASSIGN", "-=": "MINUS_ASSIGN",
+    "*=": "STAR_ASSIGN", "/=": "SLASH_ASSIGN", "%=": "PERCENT_ASSIGN",
+    "==": "EQUAL", "!=": "NOT_EQUAL",
+    "<": "LESS", ">": "GREATER", "<=": "LESS_EQUAL", ">=": "GREATER_EQUAL",
+    "&&": "AND", "||": "OR", "!": "NOT",
     "(": "LPAREN", ")": "RPAREN", ",": "COMMA", ";": "SEMICOLON",
 }
 
@@ -216,3 +221,101 @@ def test_missing_right_operand():
     with pytest.raises(SyntacticError) as info:
         parser.mult_expr()
     assert info.value.found.type == "EOF"
+
+# Binary levels 
+
+def test_additive_operators():
+    tree = parse_with("additive_expr", "a + b - c")
+    assert text(tree) == "a + b - c"
+    assert text(tree.children[1].children[0]) == "+"
+
+def test_multiplication_binds_tighter_than_addition():
+    tree = parse_with("additive_expr", "a * b + c")
+    assert text(tree.children[0]) == "a * b"
+
+@pytest.mark.parametrize("op", ["<", ">", "<=", ">="])
+def test_relational_operators(op):
+    tree = parse_with("relational_expr", f"a {op} b + 1")
+    assert text(tree.children[0]) == "a"
+    assert text(tree.children[1].children[0]) == op
+    assert text(tree.children[1].children[1]) == "b + 1"
+
+@pytest.mark.parametrize("op", ["==", "!="])
+def test_equality_operators(op):
+    tree = parse_with("equality_expr", f"a < b {op} c > d")
+    assert text(tree.children[0]) == "a < b"
+    assert text(tree.children[1].children[1]) == "c > d"
+
+def test_and_binds_tighter_than_or():
+    tree = parse_with("or_expr", "a || b && c")
+    assert text(tree.children[0]) == "a"
+    assert text(tree.children[1].children[1]) == "b && c"
+
+def test_each_level_takes_the_next_one_as_operand():
+    tree = parse_with("expr", "a || b && c == d < e + f * g")
+    or_expr = tree.children[0].children[0]
+    and_expr = or_expr.children[1].children[1]
+    equality = and_expr.children[1].children[1]
+    relational = equality.children[1].children[1]
+    additive = relational.children[1].children[1]
+    mult = additive.children[1].children[1]
+    assert text(and_expr) == "b && c == d < e + f * g"
+    assert text(equality) == "c == d < e + f * g"
+    assert text(relational) == "d < e + f * g"
+    assert text(additive) == "e + f * g"
+    assert text(mult) == "f * g"
+
+def test_parentheses_override_precedence():
+    tree = parse_with("mult_expr", "( a + b ) * c")
+    assert text(tree.children[0]) == "( a + b )"
+
+def test_missing_operand_after_binary_operator():
+    parser = Parser(toks("a + * b"))
+    with pytest.raises(SyntacticError) as info:
+        parser.expr()
+    assert info.value.found.type == "STAR"
+    assert "ID" in info.value.expected
+
+# ---------- Assignment and Expr ----------
+
+def test_expr_wraps_assign_expr():
+    tree = parse_with("expr", "x")
+    assert labels(tree) == ["AssignExpr"]
+
+def test_simple_assignment():
+    tree = parse_with("assign_expr", "a = b + 1")
+    assert labels(tree) == ["OrExpr", "AssignTail"]
+    assert text(tree.children[1]) == "= b + 1"
+
+@pytest.mark.parametrize("op", ["+=", "-=", "*=", "/=", "%="])
+def test_compound_assignment(op):
+    tree = parse_with("assign_expr", f"a {op} 2")
+    assert text(tree.children[1].children[0]) == op
+
+def test_assignment_is_right_associative():
+    tree = parse_with("assign_expr", "a = b = c")
+    inner = tree.children[1].children[1]
+    assert inner.label == "AssignExpr"
+    assert text(inner) == "b = c"
+
+def test_assignment_inside_call_arguments():
+    tree = parse_with("expr", "f ( a = 1 , b + 2 )")
+    assert text(tree) == "f ( a = 1 , b + 2 )"
+
+@pytest.mark.parametrize(
+    ("source", "found"),
+    [("a + b = c", "PLUS"), ("5 = x", "INT_LITERAL"), ("( a ) = b", "LPAREN"), ("a = b + c = d", "PLUS")],
+)
+def test_assignment_needs_variable(source, found):
+    parser = Parser(toks(source))
+    with pytest.raises(SyntacticError) as info:
+        parser.expr()
+    assert info.value.expected == ["ID"]
+    assert info.value.found.type == found
+
+def test_increment_error_points_after_the_variable():
+    parser = Parser(toks("++ x ++"))
+    with pytest.raises(SyntacticError) as info:
+        parser.unary_expr()
+    assert info.value.found.type == "INCREMENT"
+    assert info.value.found.column == 3
