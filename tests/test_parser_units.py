@@ -29,8 +29,7 @@ def test_consume_wrong_type_raises_error():
     assert info.value.expected == ["SEMICOLON"]
     assert info.value.found.type == "RBRACE"
     assert str(info.value) == (
-        "Error sintáctico en línea 1, columna 1: "
-        "se esperaba SEMICOLON y se encontró RBRACE ('}')"
+        "Error sintáctico en línea 1, columna 1: se esperaba SEMICOLON y se encontró RBRACE ('}')"
     )
 
 
@@ -55,32 +54,81 @@ def test_epsilon_returns_epsilon_leaf():
 # ---------- Node ----------
 def test_leaves_skip_epsilon():
     a, plus, b = make_tokens(("ID", "a"), ("PLUS", "+"), ("ID", "b"))[:3]
-    tree = Node("E", [
-        Node("ID", token=a),
-        Node("E'", [Node("PLUS", token=plus), Node("ID", token=b), Node("E'", [Node(EPSILON)])]),
-    ])
+    tree = Node(
+        "E",
+        [
+            Node("ID", token=a),
+            Node(
+                "E'", [Node("PLUS", token=plus), Node("ID", token=b), Node("E'", [Node(EPSILON)])]
+            ),
+        ],
+    )
     assert [t.lexeme for t in tree.leaves()] == ["a", "+", "b"]
     assert tree.children[1].children[2].children[0].is_epsilon()
 
 
 # ---------- Tokens from text (temporary, until the lexer exists) ----------
 SYMBOLS = {
-    "+": "PLUS", "-": "MINUS", "*": "STAR", "/": "SLASH", "%": "PERCENT",
-    "++": "INCREMENT", "--": "DECREMENT",
-    "=": "ASSIGN", "+=": "PLUS_ASSIGN", "-=": "MINUS_ASSIGN",
-    "*=": "STAR_ASSIGN", "/=": "SLASH_ASSIGN", "%=": "PERCENT_ASSIGN",
-    "==": "EQUAL", "!=": "NOT_EQUAL",
-    "<": "LESS", ">": "GREATER", "<=": "LESS_EQUAL", ">=": "GREATER_EQUAL",
-    "&&": "AND", "||": "OR", "!": "NOT",
-    "<<": "SHIFT_LEFT", ">>": "SHIFT_RIGHT",
-    "(": "LPAREN", ")": "RPAREN", "{": "LBRACE", "}": "RBRACE",
-    ",": "COMMA", ";": "SEMICOLON", ":": "COLON",
+    "+": "PLUS",
+    "-": "MINUS",
+    "*": "STAR",
+    "/": "SLASH",
+    "%": "PERCENT",
+    "++": "INCREMENT",
+    "--": "DECREMENT",
+    "=": "ASSIGN",
+    "+=": "PLUS_ASSIGN",
+    "-=": "MINUS_ASSIGN",
+    "*=": "STAR_ASSIGN",
+    "/=": "SLASH_ASSIGN",
+    "%=": "PERCENT_ASSIGN",
+    "==": "EQUAL",
+    "!=": "NOT_EQUAL",
+    "<": "LESS",
+    ">": "GREATER",
+    "<=": "LESS_EQUAL",
+    ">=": "GREATER_EQUAL",
+    "&&": "AND",
+    "||": "OR",
+    "!": "NOT",
+    "<<": "SHIFT_LEFT",
+    ">>": "SHIFT_RIGHT",
+    "(": "LPAREN",
+    ")": "RPAREN",
+    "{": "LBRACE",
+    "}": "RBRACE",
+    ",": "COMMA",
+    ";": "SEMICOLON",
+    ":": "COLON",
 }
 
 KEYWORDS = {
-    "int", "float", "double", "char", "bool", "string", "void",
-    "if", "else", "while", "do", "for", "switch", "case", "default",
-    "break", "continue", "return", "cin", "cout", "endl", "true", "false",
+    "int",
+    "float",
+    "double",
+    "char",
+    "bool",
+    "string",
+    "void",
+    "if",
+    "else",
+    "while",
+    "do",
+    "for",
+    "switch",
+    "case",
+    "default",
+    "break",
+    "continue",
+    "return",
+    "cin",
+    "cout",
+    "endl",
+    "true",
+    "false",
+    "using",
+    "namespace",
+    "std",
 }
 
 
@@ -90,6 +138,8 @@ def toks(source: str) -> list[Token]:
     for word in source.split():
         if word in SYMBOLS:
             pairs.append((SYMBOLS[word], word))
+        elif word.startswith("#include"):
+            pairs.append(("INCLUDE", word))
         elif word in KEYWORDS:
             pairs.append((word.upper(), word))
         elif word.isdigit():
@@ -348,7 +398,12 @@ def test_assignment_inside_call_arguments():
 
 @pytest.mark.parametrize(
     ("source", "found"),
-    [("a + b = c", "PLUS"), ("5 = x", "INT_LITERAL"), ("( a ) = b", "LPAREN"), ("a = b + c = d", "PLUS")],
+    [
+        ("a + b = c", "PLUS"),
+        ("5 = x", "INT_LITERAL"),
+        ("( a ) = b", "LPAREN"),
+        ("a = b + c = d", "PLUS"),
+    ],
 )
 def test_assignment_needs_variable(source, found):
     parser = Parser(toks(source))
@@ -621,3 +676,153 @@ def test_bad_cin(source, expected):
     with pytest.raises(SyntacticError) as info:
         parser.cin_stmt()
     assert info.value.expected == expected
+
+
+# ---------- Program and header ----------
+def parse_program(source: str) -> Node:
+    """Parse a whole program written with tokens separated by spaces."""
+    return Parser(toks(source)).parse()
+
+
+def test_empty_program():
+    tree = parse_program("")
+    assert labels(tree) == ["Header", "GlobalList"]
+    assert tree.leaves() == []
+
+
+def test_full_header():
+    tree = parse_program("#include<iostream> #include<string> using namespace std ;")
+    header = tree.children[0]
+    assert labels(header) == ["IncludeList", "UsingStd"]
+    assert text(header) == "#include<iostream> #include<string> using namespace std ;"
+
+
+@pytest.mark.parametrize("source", ["#include<iostream>", "using namespace std ;"])
+def test_each_header_part_is_optional(source):
+    tree = parse_program(source)
+    assert text(tree.children[0]) == source
+
+
+def test_using_needs_semicolon():
+    with pytest.raises(SyntacticError) as info:
+        parse_program("using namespace std int x ;")
+    assert info.value.expected == ["SEMICOLON"]
+    assert info.value.found.type == "INT"
+
+
+# ---------- Global declarations and functions ----------
+def test_global_variables():
+    tree = parse_program("int x = 5 , y ;")
+    global_decl = tree.children[1].children[0]
+    assert labels(global_decl) == ["Type", "ID", "GlobalDeclTail"]
+    assert labels(global_decl.children[2]) == ["VarDeclTail", "SEMICOLON"]
+
+
+def test_function_with_parameters():
+    tree = parse_program("int suma ( int a , int b ) { return a + b ; }")
+    tail = tree.children[1].children[0].children[2]
+    assert labels(tail) == ["LPAREN", "Params", "RPAREN", "Block"]
+    assert text(tail.children[1]) == "int a , int b"
+
+
+def test_void_function_without_parameters():
+    tree = parse_program('void saludar ( ) { cout << "hola" << endl ; }')
+    global_decl = tree.children[1].children[0]
+    assert labels(global_decl) == ["VOID", "ID", "LPAREN", "Params", "RPAREN", "Block"]
+    assert global_decl.children[3].children[0].is_epsilon()
+
+
+def test_several_global_declarations():
+    tree = parse_program("int total ; void f ( ) { } int main ( ) { return 0 ; }")
+    first = tree.children[1]
+    second = first.children[1]
+    third = second.children[1]
+    assert text(first.children[0]) == "int total ;"
+    assert text(second.children[0]) == "void f ( ) { }"
+    assert text(third.children[0]) == "int main ( ) { return 0 ; }"
+    assert third.children[1].children[0].is_epsilon()
+
+
+@pytest.mark.parametrize(
+    ("source", "expected"),
+    [
+        ("void x ;", ["LPAREN"]),
+        ("int f ( ) ;", ["LBRACE"]),
+        ("int f ( int ) { }", ["ID"]),
+        ("int main ( ) { int f ( ) { } }", ["SEMICOLON"]),
+    ],
+)
+def test_bad_global_declarations(source, expected):
+    with pytest.raises(SyntacticError) as info:
+        parse_program(source)
+    assert info.value.expected == expected
+
+
+def test_trailing_comma_in_parameters():
+    with pytest.raises(SyntacticError) as info:
+        parse_program("int f ( int a , ) { }")
+    assert info.value.found.type == "RPAREN"
+    assert "INT" in info.value.expected
+
+
+# ---------- parse() and EOF ----------
+def test_parse_rejects_extra_closing_brace():
+    with pytest.raises(SyntacticError) as info:
+        parse_program("int main ( ) { } }")
+    assert info.value.found.type == "RBRACE"
+    assert "EOF" in info.value.expected
+    assert "VOID" in info.value.expected
+
+
+def test_parse_rejects_statement_outside_function():
+    with pytest.raises(SyntacticError) as info:
+        parse_program("x = 1 ;")
+    assert info.value.found.type == "ID"
+    assert "EOF" in info.value.expected
+
+
+def test_include_after_declarations_is_rejected():
+    with pytest.raises(SyntacticError) as info:
+        parse_program("int x ; #include<iostream>")
+    assert info.value.found.type == "INCLUDE"
+
+
+# ---------- Complete program ----------
+FACTORIAL = """
+#include<iostream>
+using namespace std ;
+
+int factorial ( int n ) {
+    int r = 1 ;
+    for ( int i = 2 ; i <= n ; i ++ ) {
+        r *= i ;
+    }
+    return r ;
+}
+
+int main ( ) {
+    int n ;
+    cin >> n ;
+    if ( n < 0 )
+        cout << "Numero_invalido" << endl ;
+    else
+        cout << "Factorial:" << factorial ( n ) << endl ;
+    return 0 ;
+}
+"""
+
+
+def test_complete_program_is_accepted():
+    tree = parse_program(FACTORIAL)
+    assert tree.label == "Program"
+    assert text(tree) == " ".join(FACTORIAL.split())
+
+
+def test_complete_program_tree_follows_the_grammar():
+    tree = parse_program(FACTORIAL)
+    functions = tree.children[1]
+    factorial = functions.children[0]
+    main = functions.children[1].children[0]
+    assert text(factorial.children[1]) == "factorial"
+    assert text(main.children[1]) == "main"
+    assert functions.children[1].children[1].children[0].is_epsilon()
