@@ -1,8 +1,0 @@
-# Grammar for Spanish prepositional phrases (small demonstration for the report)
-# Structural ambiguity: in "vi al hombre con el telescopio" the phrase "con el telescopio" can modify
-# "hombre" (NounTail) or "vi" (VerbTail). The verifier shows it as a conflict at M[NounTail, PREP].
-Sentence -> NounPhrase VerbPhrase
-NounPhrase -> DET NOUN NounTail
-NounTail -> PREP NounPhrase | ε
-VerbPhrase -> VERB NounPhrase VerbTail
-VerbTail -> PREP NounPhrase | ε

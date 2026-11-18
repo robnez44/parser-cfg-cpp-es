@@ -1,6 +1,0 @@
-# Grammar for the dangling else (Aho et al., "Compilers", section 4.4)
-# i = if, t = then, e = else, a = other statement, b = condition.
-# Not LL(1): one conflict at M[S', e] (FIRST/FOLLOW), the same one as the C++ subset has at M[ElsePart, ELSE].
-S -> i E t S S' | a
-S' -> e S | ε
-E -> b
