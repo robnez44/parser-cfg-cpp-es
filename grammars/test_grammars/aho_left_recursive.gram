@@ -1,5 +1,0 @@
-# Grammar for arithmetic expressions with left recursion (Aho et al., "Compilers", section 4.1)
-# Not LL(1): E and T are left recursive, so M[E, (], M[E, id], M[T, (] and M[T, id] have two productions each.
-E -> E + T | T
-T -> T * F | F
-F -> ( E ) | id

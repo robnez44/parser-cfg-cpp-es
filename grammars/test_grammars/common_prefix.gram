@@ -1,3 +1,0 @@
-# Grammar for alternatives that share a prefix
-# Not LL(1): M[S, a] has two productions (FIRST/FIRST). Left factoring fixes it: S -> a S', S' -> b | c.
-S -> a b | a c

@@ -1,5 +1,0 @@
-# Grammar with nullable nonterminals (Aho et al., "Compilers", section 4.4)
-# LL(1) even though A and B vanish. FIRST(S) = { a, b }, FOLLOW(A) = { a, b }, FOLLOW(B) = { a, b }.
-S -> A a A b | B b B a
-A -> ε
-B -> ε
