@@ -1,0 +1,4 @@
+# Grammar with indirect left recursion (Aho et al., "Compilers", section 4.3)
+# S => A a => S d a: S and A call each other through the leftmost position. A is also directly left recursive.
+S -> A a | b
+A -> A c | S d | ε
