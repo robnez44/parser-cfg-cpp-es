@@ -34,7 +34,7 @@ def _describe_found(token: Token) -> str:
     
     return f"{token.type} ('{token.lexeme}')"
 
-    class SemanticError(Exception):
+class SemanticError(Exception):
     """Collected (not raised) by the semantic analyzer when the program breaks a rule."""
 
     def __init__(self, line: int, column: int, detail: str):
