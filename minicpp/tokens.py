@@ -3,9 +3,42 @@ from dataclasses import dataclass
 
 @dataclass
 class Token:
-    """A lexical unit produced by the lexer."""
+    type: str
+    lexeme: str
+    line: int      # lines and columns start at 1
+    column: int
 
-    type: str      # token type name, e.g. "ID" or "SEMICOLON"
-    lexeme: str    # text as it appears in the source code
-    line: int      # starts at 1
-    column: int    # starts at 1
+
+# Reserved words: the lexer matches them as ID and then looks them up here.
+KEYWORDS = {
+    "using": "USING",
+    "namespace": "NAMESPACE",
+    "std": "STD",
+
+    "int": "INT",
+    "float": "FLOAT",
+    "double": "DOUBLE",
+    "char": "CHAR",
+    "bool": "BOOL",
+    "string": "STRING",
+    "void": "VOID",
+
+    "if": "IF",
+    "else": "ELSE",
+    "while": "WHILE",
+    "do": "DO",
+    "for": "FOR",
+    "switch": "SWITCH",
+    "case": "CASE",
+    "default": "DEFAULT",
+    "break": "BREAK",
+    "continue": "CONTINUE",
+    "return": "RETURN",
+
+    "cin": "CIN",
+    "cout": "COUT",
+    "endl": "ENDL",
+
+    "true": "TRUE",
+    "false": "FALSE",
+}
