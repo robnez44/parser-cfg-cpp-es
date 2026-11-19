@@ -180,3 +180,72 @@ def test_s6_function_name_without_parentheses():
 
 def test_s6_assigning_to_a_function_name():
     assert lines(FUNCTIONS + "int main() {\n cero = 1;\n return 0;\n}") == [11]
+
+
+# ---------- S7: valid returns ----------
+def test_s7_function_with_a_type_returns_a_value():
+    assert check("int f() {\n return 1;\n}") == []
+
+
+def test_s7_void_function_without_return():
+    assert check("void f() {\n cout << 1;\n}") == []
+
+
+def test_s7_void_function_with_an_empty_return():
+    assert check("void f() {\n return;\n}") == []
+
+
+def test_s7_main_may_end_without_return():
+    assert check("int main() {\n int x = 1;\n}") == []
+
+
+def test_s7_return_inside_a_nested_block_counts():
+    assert check("int f(int x) {\n while (x > 0) {\n return x;\n }\n return 0;\n}") == []
+
+
+# ---------- S7: wrong returns ----------
+def test_s7_void_function_returns_a_value():
+    assert messages("void f() {\n return 5;\n}") == [
+        "Error semántico en línea 2, columna 2: "
+        "la función 'f' es void y no puede devolver un valor"
+    ]
+
+
+def test_s7_function_with_a_type_has_an_empty_return():
+    assert messages("double f() {\n return;\n}") == [
+        "Error semántico en línea 2, columna 2: "
+        "la función 'f' debe devolver un valor de tipo double"
+    ]
+
+
+def test_s7_main_cannot_have_an_empty_return():
+    assert lines("int main() {\n return;\n}") == [2]
+
+
+def test_s7_function_with_a_type_without_return_points_at_its_closing_brace():
+    assert messages("int suma(int a, int b) {\n int c = a + b;\n}") == [
+        "Error semántico en línea 3, columna 1: "
+        "la función 'suma' debe devolver un valor de tipo int"
+    ]
+
+
+def test_s7_empty_return_is_not_also_reported_as_missing():
+    assert lines("int f() {\n return;\n}") == [2]
+
+
+def test_s7_each_function_is_checked_on_its_own():
+    source = "int f() {\n}\nint g() {\n return 1;\n}\nint h() {\n}"
+    assert lines(source) == [2, 7]
+
+
+def test_s7_undeclared_name_in_the_returned_value_is_still_reported():
+    assert messages("int f() {\n return y;\n}") == [
+        "Error semántico en línea 2, columna 9: la variable 'y' no está declarada"
+    ]
+
+
+# ---------- S7: known limitation ----------
+def test_s7_does_not_check_that_every_path_returns():
+    # g++ only warns here ("control reaches end of non-void function").
+    # Checking every path needs control flow analysis (CONTRATO.md, section 9, S7).
+    assert check("int f(int x) {\n if (x > 0) return 1;\n}") == []
