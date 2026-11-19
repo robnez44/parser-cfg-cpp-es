@@ -130,13 +130,16 @@ class SemanticAnalyzer:
         """
         token = id_node.token
         parameters = self.param_list(params)
-        self.declare(Symbol(token.lexeme, "function", type_name, token.line, token.column,
-                            [type_ for type_, _ in parameters]))
+        function = Symbol(token.lexeme, "function", type_name, token.line, token.column,
+                          [type_ for type_, _ in parameters])
+        self.declare(function)
         self.symbols.enter_scope()
         for param_type, param_token in parameters:
             self.declare(Symbol(param_token.lexeme, "parameter", param_type,
                                 param_token.line, param_token.column))
+        self.enter_function(function)               # S7, section 4
         self.generic_visit(body.children[1])        # Block -> LBRACE StmtList RBRACE: no extra scope
+        self.exit_function(body)                    # S7, section 4
         self.symbols.exit_scope()
 
     def visit_global_decl(self, node: Node) -> None:
@@ -262,3 +265,39 @@ class SemanticAnalyzer:
         if expected != received:
             word = "argumento" if expected == 1 else "argumentos"
             self.error(token, f"'{name}' espera {expected} {word} y recibió {received}")
+
+    def enter_function(self, function: Symbol) -> None:
+        """Remember the function whose body is being checked (rule S7)."""
+        self.current_function = function
+        self.return_count = 0
+
+    def exit_function(self, body: Node) -> None:
+        """S7: a function with a type has at least one return. main may end without one.
+
+        It does not check that every path returns: `if (x) return 1;` alone is accepted.
+        The error points at the closing brace, where the function ends without a value.
+        """
+        function = self.current_function
+        if function.type == "void" or function.name == "main" or self.return_count > 0:
+            return
+        self.error(body.children[2].token, self.missing_value(function))
+
+    def visit_return_stmt(self, node: Node) -> None:
+        """ReturnStmt -> RETURN OptExpr SEMICOLON   (S7: the value matches the function type)
+
+        OptExpr -> Expr | ε. The type of the value is checked once type_of() exists (P5).
+        """
+        self.return_count += 1
+        function = self.current_function
+        has_value = not node.children[1].children[0].is_epsilon()
+        token = node.children[0].token
+        if function.type == "void" and has_value:
+            self.error(token,
+                       f"la función '{function.name}' es void y no puede devolver un valor")
+        elif function.type != "void" and not has_value:
+            self.error(token, self.missing_value(function))
+        self.generic_visit(node)                    # the returned expression may use names (S1)
+
+    @staticmethod
+    def missing_value(function: Symbol) -> str:
+        return f"la función '{function.name}' debe devolver un valor de tipo {function.type}"
