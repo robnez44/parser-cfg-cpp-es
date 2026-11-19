@@ -33,3 +33,12 @@ def _describe_found(token: Token) -> str:
         return "EOF (fin del archivo)"
     
     return f"{token.type} ('{token.lexeme}')"
+
+    class SemanticError(Exception):
+    """Collected (not raised) by the semantic analyzer when the program breaks a rule."""
+
+    def __init__(self, line: int, column: int, detail: str):
+        self.line = line
+        self.column = column
+        self.detail = detail
+        super().__init__(f"Error semántico en línea {line}, columna {column}: {detail}")
