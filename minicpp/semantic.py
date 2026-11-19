@@ -1,3 +1,10 @@
+"""Semantic analyzer: checks rules S1 to S9 of CONTRATO.md (section 9) on the parse tree.
+
+It collects every SemanticError instead of stopping at the first one. The file has
+four fixed sections, one per owner, so each person edits only theirs and Git merges
+the changes without conflicts.
+"""
+
 import re
 
 from minicpp.errors import SemanticError
@@ -7,11 +14,21 @@ from minicpp.tokens import Token
 
 
 def _snake_case(label: str) -> str:
-    """``LocalDecl`` -> ``local_decl``."""
+    """``LocalDecl`` -> ``local_decl``.
+
+    Only meant for nonterminal labels (CamelCase). A token type such as ``ID``
+    would become ``i_d``, so there are no visit methods for tokens.
+    """
     return re.sub(r"(?<!^)(?=[A-Z])", "_", label).lower()
 
 
 class SemanticAnalyzer:
+    """Walks the parse tree once and collects the semantic errors.
+
+    The state (errors and symbol table) is created in check(), so each call
+    starts clean even if the same analyzer is reused.
+    """
+
     def check(self, tree: Node) -> list[SemanticError]:
         """Run the semantic rules over the parse tree and return the errors, sorted by position."""
         self.errors: list[SemanticError] = []
@@ -33,6 +50,7 @@ class SemanticAnalyzer:
             method(node)
 
     def generic_visit(self, node: Node) -> None:
+        """Visit the children from left to right (used when there is no visit_<label>)."""
         for child in node.children:
             self.visit(child)
 
