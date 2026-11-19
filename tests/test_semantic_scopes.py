@@ -59,31 +59,31 @@ def lines(source: str) -> list[int]:
 
 
 # ---------- Valid programs ----------
-def test_program_with_declared_variables_is_valid():
+def test_valid_program_with_declared_variables():
     assert check("int main() {\n int x = 1;\n int y = x + 2;\n return y;\n}") == []
 
 
-def test_global_variable_is_visible_inside_functions():
+def test_valid_global_variable_is_visible_inside_functions():
     assert check("int total = 0;\nint main() {\n total = 1;\n return 0;\n}") == []
 
 
-def test_parameters_are_visible_in_the_body():
+def test_valid_parameters_are_visible_in_the_body():
     assert check("int suma(int a, int b) {\n return a + b;\n}") == []
 
 
-def test_function_can_be_called_after_its_definition():
+def test_valid_function_can_be_called_after_its_definition():
     assert check("int f() { return 1; }\nint main() {\n int x = f();\n return 0;\n}") == []
 
 
-def test_function_can_call_itself():
+def test_valid_function_can_call_itself():
     assert check("int fact(int n) {\n if (n <= 1) return 1;\n return n * fact(n - 1);\n}") == []
 
 
-def test_cin_and_cout_with_declared_variables():
+def test_valid_cin_and_cout_with_declared_variables():
     assert check("int main() {\n int x;\n cin >> x;\n cout << x << endl;\n return 0;\n}") == []
 
 
-def test_several_declarators_in_one_declaration():
+def test_valid_several_declarators_in_one_declaration():
     assert check("int main() {\n int a = 1, b = a, c;\n c = b;\n return 0;\n}") == []
 
 
@@ -219,20 +219,20 @@ def test_s5_main_body_variable_is_not_visible_in_another_function():
     assert lines("int f() { int x = 1; return x; }\nint g() { return x; }") == [2]
 
 
-# ---------- Shadowing ----------
-def test_shadowing_a_global_in_a_function_is_fine():
+# ---------- S2: shadowing in an inner scope is not a redeclaration ----------
+def test_s2_shadowing_a_global_in_a_function_is_fine():
     assert check("int x;\nint main() {\n int x = 1;\n return x;\n}") == []
 
 
-def test_shadowing_in_an_inner_block_is_fine():
+def test_s2_shadowing_in_an_inner_block_is_fine():
     assert check("int main() {\n int x = 1;\n {\n  int x = 2;\n  x = 3;\n }\n return x;\n}") == []
 
 
-def test_shadowing_a_parameter_in_an_inner_block_is_fine():
+def test_s2_shadowing_a_parameter_in_an_inner_block_is_fine():
     assert check("int f(int a) {\n {\n  int a = 2;\n }\n return a;\n}") == []
 
 
-def test_for_variable_can_shadow_an_outer_one():
+def test_s2_for_variable_can_shadow_an_outer_one():
     assert check("int main() {\n int i = 0;\n for (int i = 0; i < 2; i++) { }\n return i;\n}") == []
 
 

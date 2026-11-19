@@ -341,6 +341,16 @@ class SemanticAnalyzer:
 | Semántico: funciones, `return`, `break` y `continue` | `tests/test_semantic_functions.py` | P1 |
 | Programas completos | `tests/test_cases.py` y `cases/` | P3 |
 
+- **Nombres de las pruebas.** Cada prueba empieza con la parte del contrato que revisa, así se encuentra rápido:
+
+  | Componente | Prefijo | Ejemplo |
+  |---|---|---|
+  | Semántico | `test_sN_`, con N el número de la regla | `test_s8_break_outside_a_loop` |
+  | Parser | El no terminal en snake_case, igual que su método en `parser.py`. Las pruebas de los auxiliares y de `parse()` llevan el nombre del método | `test_if_stmt_dangling_else_binds_to_nearest_if`, `test_consume_...` |
+  | Lexer | La regla léxica o el grupo de tokens de la sección 4: `reserved_word`, `identifier`, `operator_and_delimiter`, `longest_match`, `literal`, `header`, `ignored`, `position`, `eof`, `lexical_error`, `rule_table` y `program` | `test_longest_match`, `test_lexical_error_unclosed_string` |
+  | Tabla de símbolos, línea de comandos, visualización y verificador | El tema que prueban: el método, la opción o la gramática | `test_declare_...`, `test_tokens_option`, `test_cpp_grammar_...` |
+
+  Las pruebas del semántico que no son de una sola regla empiezan con `test_valid_` (un programa válido que pasa por varias reglas) o `test_analyzer_` (el comportamiento general, como el orden de los errores).
 - **Casos de programas completos.**
   - Los válidos van en `cases/valid/` y los inválidos en `cases/invalid/`.
   - Nombre de archivo: `NN_stage_description.cpp`, por ejemplo `21_semantic_undeclared_variable.cpp`.
@@ -355,7 +365,7 @@ class SemanticAnalyzer:
 - **Lo que comprueba pytest.**
   - Los casos válidos pasan las tres etapas sin errores.
   - Los inválidos fallan en la etapa indicada y en las líneas indicadas.
-- **Mientras no exista el lexer,** las pruebas del semántico arman los tokens con la ayuda `toks()` de `tests/test_parser_units.py`. Cuando el lexer esté, se cambian a `tokenize()`.
+- **Pruebas del semántico.** Arman el programa con `analyze()`, que ya corre el lexer real. La ayuda `toks()` era temporal, mientras no existía el lexer.
 
 ## 11. Estructura del repositorio
 
