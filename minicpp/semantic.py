@@ -192,9 +192,14 @@ class SemanticAnalyzer:
         if first.label == "ID":
             token = first.token
             is_call = node.children[1].children[0].label == "LPAREN"   # IdTail -> LPAREN Args RPAREN | ε
-            if self.symbols.lookup(token.lexeme) is None:
+            symbol = self.symbols.lookup(token.lexeme)
+            if symbol is None:
                 what = "la función" if is_call else "la variable"
                 self.error(token, f"{what} '{token.lexeme}' no está declarada")
+            elif is_call:
+                self.check_call(symbol, token, node.children[1])   # S6, section 4
+            elif symbol.kind == "function":                    # S6: a function used as a value
+                self.error(token, f"'{token.lexeme}' es una función, no una variable")
         self.generic_visit(node)                    # the arguments of a call are expressions too
 
     def visit_cin_stmt(self, node: Node) -> None:
@@ -227,3 +232,33 @@ class SemanticAnalyzer:
         """ContinueStmt -> CONTINUE SEMICOLON   (S8: only inside a loop)"""
         if self.loop_depth == 0:
             self.error(node.children[0].token, "continue solo puede ir dentro de un ciclo")
+
+    def call_arguments(self, args: Node) -> list[Node]:
+        """Return the Expr node of each argument, from left to right.
+
+        Args -> Expr ArgsTail | ε       ArgsTail -> COMMA Expr ArgsTail | ε
+        """
+        if args.children[0].is_epsilon():
+            return []
+        found = [args.children[0]]
+        tail = args.children[1]
+        while not tail.children[0].is_epsilon():
+            _, expr, tail = tail.children
+            found.append(expr)
+        return found
+
+    def check_call(self, symbol: Symbol, token: Token, id_tail: Node) -> None:
+        """S6: the called name is a function and gets as many arguments as it has parameters.
+
+        IdTail -> LPAREN Args RPAREN
+        The types of the arguments are checked once type_of() exists (section 3, P5).
+        """
+        name = token.lexeme
+        if symbol.kind != "function":
+            self.error(token, f"'{name}' no es una función")
+            return
+        expected = len(symbol.params)
+        received = len(self.call_arguments(id_tail.children[1]))
+        if expected != received:
+            word = "argumento" if expected == 1 else "argumentos"
+            self.error(token, f"'{name}' espera {expected} {word} y recibió {received}")
