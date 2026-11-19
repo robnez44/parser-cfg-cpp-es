@@ -3,7 +3,9 @@ name = "parser-cfg-cpp-es"
 version = "0.1.0"
 description = "Parsers in Python for a C++ subset and for Spanish, analyzing the limits of context-free grammars"
 requires-python = ">=3.11"
-dependencies = []
+dependencies = [
+    "nltk>=3.10.4",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
