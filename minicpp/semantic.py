@@ -1,3 +1,10 @@
+"""Semantic analyzer: checks rules S1 to S9 of CONTRATO.md (section 9) on the parse tree.
+
+It collects every SemanticError instead of stopping at the first one. The file has
+four fixed sections, one per owner, so each person edits only theirs and Git merges
+the changes without conflicts.
+"""
+
 import re
 
 from minicpp.errors import SemanticError

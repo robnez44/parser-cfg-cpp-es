@@ -116,10 +116,15 @@ class Parser:
     def require_variable(self, target: Node) -> None:
         """Check that the target of an assignment, ++ or -- is a plain variable.
 
-        The grammar cannot express this rule and stay LL(1), so it is checked
-        here (CONTRATO.md, section 2). The error points at the first token
-        that breaks the rule: the target itself if it does not start with an
-        identifier, or the token right after the identifier otherwise.
+        With the precedence levels of cpp.gram, one token of lookahead cannot
+        tell `a = 1` from `a + 1`: both start with ID. Writing the rule in the
+        grammar would need LL(2) or a second copy of the whole expression
+        chain, so the parser checks it here (CONTRATO.md, section 2). It is a
+        limit of LL(1) parsing with this grammar, not of context-free grammars.
+
+        The error points at the first token that breaks the rule: the target
+        itself if it does not start with an identifier, or the token right
+        after the identifier otherwise.
         """
         tokens = target.leaves()
         if len(tokens) == 1 and tokens[0].type == "ID":
