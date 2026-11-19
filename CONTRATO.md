@@ -289,7 +289,7 @@ Las reglas S1 a S5 son las mínimas que pide el enunciado. Las S6 a S9 las agreg
 | S4 | Los operandos de cada operador tienen tipos válidos para ese operador | P5 | el operador % necesita operandos enteros y recibió double |
 | S5 | Ámbitos: una variable no se ve fuera del bloque donde se declaró | P4 | la variable 'i' no está declarada |
 | S6 | Llamadas: el nombre es una función, la cantidad de argumentos coincide y cada argumento es compatible con su parámetro. Un nombre de función no se usa como variable (sin paréntesis) | P1 | 'suma' espera 2 argumentos y recibió 3 |
-| S7 | `return`: una función `void` no devuelve valor y una función con tipo devuelve un valor compatible | P1 | la función 'main' debe devolver un valor de tipo int |
+| S7 | `return`: una función `void` no devuelve valor; una función con tipo tiene al menos un `return` y cada uno devuelve un valor compatible. `main` puede terminar sin `return` (devuelve 0, como en C++). No se revisa que todos los caminos devuelvan un valor | P1 | la función 'suma' debe devolver un valor de tipo int |
 | S8 | `break` solo dentro de un ciclo o de un `switch`; `continue` solo dentro de un ciclo | P1 | break solo puede ir dentro de un ciclo o de un switch |
 | S9 | La condición de `if`, `while`, `do-while` y `for` no puede ser `string` ni una llamada a función `void` | P5 | la condición del if no puede ser de tipo string |
 
