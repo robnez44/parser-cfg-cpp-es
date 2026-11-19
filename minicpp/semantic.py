@@ -12,6 +12,8 @@ from minicpp.node import Node
 from minicpp.symbols import Symbol, SymbolTable
 from minicpp.tokens import Token
 
+LOOPS = {"WhileStmt", "DoWhileStmt", "ForStmt"}
+
 
 def _snake_case(label: str) -> str:
     """``LocalDecl`` -> ``local_decl``.
@@ -33,6 +35,8 @@ class SemanticAnalyzer:
         """Run the semantic rules over the parse tree and return the errors, sorted by position."""
         self.errors: list[SemanticError] = []
         self.symbols = SymbolTable()
+        self.loop_depth = 0        # loops that enclose the current node (rule S8)
+        self.switch_depth = 0      # switches that enclose the current node (rule S8)
         self.visit(tree)
         self.errors.sort(key=lambda e: (e.line, e.column))
         return self.errors
@@ -42,12 +46,27 @@ class SemanticAnalyzer:
     # ==================================================================
 
     def visit(self, node: Node) -> None:
-        """Call visit_<label in snake_case> if it exists, otherwise visit the children in order."""
+        """Call visit_<label in snake_case> if it exists, otherwise visit the children in order.
+
+        It also counts the loops and switches that enclose the current node (rule S8).
+        The count lives here and not in visit_for_stmt or visit_switch_stmt, because
+        those methods belong to section 2 (scopes).
+        """
+        if node.label in LOOPS:
+            self.loop_depth += 1
+        elif node.label == "SwitchStmt":
+            self.switch_depth += 1
+
         method = getattr(self, "visit_" + _snake_case(node.label), None)
         if method is None:
             self.generic_visit(node)
         else:
             method(node)
+
+        if node.label in LOOPS:
+            self.loop_depth -= 1
+        elif node.label == "SwitchStmt":
+            self.switch_depth -= 1
 
     def generic_visit(self, node: Node) -> None:
         """Visit the children from left to right (used when there is no visit_<label>)."""
@@ -197,3 +216,14 @@ class SemanticAnalyzer:
     # ==================================================================
     # Section 4 (P1): functions, return, break and continue
     # ==================================================================
+
+    def visit_break_stmt(self, node: Node) -> None:
+        """BreakStmt -> BREAK SEMICOLON   (S8: only inside a loop or a switch)"""
+        if self.loop_depth == 0 and self.switch_depth == 0:
+            self.error(node.children[0].token,
+                       "break solo puede ir dentro de un ciclo o de un switch")
+
+    def visit_continue_stmt(self, node: Node) -> None:
+        """ContinueStmt -> CONTINUE SEMICOLON   (S8: only inside a loop)"""
+        if self.loop_depth == 0:
+            self.error(node.children[0].token, "continue solo puede ir dentro de un ciclo")
