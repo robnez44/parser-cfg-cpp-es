@@ -244,3 +244,168 @@ La condición del `for` se revisa mientras su ámbito sigue abierto, así que `f
 - `visit_if_stmt`, `visit_while_stmt` y `visit_do_while_stmt` revisan S9. El `for` y los inicializadores son de la sección 2, que llama a `check_condition` y `check_initializer` de la sección 3.
 - `visit_cout_item` calcula el tipo de lo que se imprime, porque `CoutItem` empieza en `AdditiveExpr` y no pasa por `Expr`.
 - Pruebas: `tests/test_semantic_types.py`.
+
+## S6: llamadas a funciones
+
+En una llamada `f(...)` se revisa que `f` sea una función y que reciba tantos argumentos como parámetros tiene. También se revisa el caso contrario: un nombre de función sin paréntesis no se puede usar como variable. Si el nombre no está declarado, solo se reporta S1, para no sumar un segundo error por la misma causa.
+
+Válido:
+
+```cpp
+int suma(int a, int b) {
+    return a + b;
+}
+
+int main() {
+    return suma(1, suma(2, 3));
+}
+```
+
+Inválido (cantidad de argumentos):
+
+```cpp
+int suma(int a, int b) {
+    return a + b;
+}
+
+int main() {
+    return suma(1, 2, 3);   // Error semántico en línea 6, columna 12: 'suma' espera 2 argumentos y recibió 3
+}
+```
+
+Inválido (el nombre no es una función):
+
+```cpp
+int main() {
+    int x = 1;
+    x();                    // Error semántico en línea 3, columna 5: 'x' no es una función
+    return 0;
+}
+```
+
+Inválido (una función usada como variable):
+
+```cpp
+int cero() {
+    return 0;
+}
+
+int main() {
+    int y = cero;           // Error semántico en línea 6, columna 13: 'cero' es una función, no una variable
+    return y;
+}
+```
+
+- Una variable local con el mismo nombre que una función la tapa, como en C++: después de `int suma = 1;`, la llamada `suma(1, 2)` da "'suma' no es una función".
+- Con un parámetro el mensaje dice "1 argumento", en singular.
+- Falta revisar que el tipo de cada argumento sea compatible con su parámetro. Se agrega cuando exista `type_of()` (S3 y S4).
+- `cin >> cero;` con `cero` función no se detecta, porque los nombres de `cin` se revisan aparte, en S1.
+
+## S7: `return` según el tipo de la función
+
+Se revisa cada `return` y, al terminar el cuerpo, si la función tenía alguno:
+
+| Caso | Resultado | En C++ (g++) |
+|---|---|---|
+| `void` con `return 5;` | Error | Error |
+| Con tipo y `return;` | Error, incluido `main` | Error |
+| Con tipo y ningún `return` | Error en la `}` del cuerpo | Advertencia: `no return statement in function returning non-void` |
+| `main` sin ningún `return` | Válido, devuelve 0 | Válido |
+
+Válido:
+
+```cpp
+void saludar() {
+    cout << "hola" << endl;
+}
+
+int main() {
+    saludar();
+}
+```
+
+Inválido (`void` con valor):
+
+```cpp
+void saludar() {
+    return 1;           // Error semántico en línea 2, columna 5: la función 'saludar' es void y no puede devolver un valor
+}
+```
+
+Inválido (`return` sin valor):
+
+```cpp
+int doble(int x) {
+    return;             // Error semántico en línea 2, columna 5: la función 'doble' debe devolver un valor de tipo int
+}
+```
+
+Inválido (ningún `return`):
+
+```cpp
+int suma(int a, int b) {
+    int c = a + b;
+}                       // Error semántico en línea 3, columna 1: la función 'suma' debe devolver un valor de tipo int
+```
+
+**Limitación.** No se revisa que todos los caminos devuelvan un valor. Esto pasa sin error:
+
+```cpp
+int signo(int x) {
+    if (x > 0) return 1;
+}
+```
+
+g++ lo compila con la advertencia `control reaches end of non-void function`. Para detectarlo hay que seguir cada camino de ejecución (las dos ramas del `if`, ciclos que pueden no ejecutarse, el `default` del `switch`), y eso ya es análisis de flujo de control, que el enunciado no pide.
+
+Falta revisar que el valor devuelto sea compatible con el tipo de la función (`return "hola";` en una función `int`). Se agrega cuando exista `type_of()`.
+
+## S8: `break` y `continue`
+
+`break` solo puede ir dentro de un ciclo (`while`, `do-while`, `for`) o de un `switch`. `continue` solo dentro de un ciclo. La regla depende de dónde está escrito el `break`, no de desde dónde se llama la función que lo contiene.
+
+Válido (`continue` dentro de un `switch` que está dentro de un ciclo):
+
+```cpp
+int main() {
+    int op = 1;
+    while (true) {
+        switch (op) {
+            case 1: continue;
+            default: break;
+        }
+        break;
+    }
+    return 0;
+}
+```
+
+Inválido (`break` fuera de un ciclo):
+
+```cpp
+int main() {
+    break;              // Error semántico en línea 2, columna 5: break solo puede ir dentro de un ciclo o de un switch
+    return 0;
+}
+```
+
+Inválido (`continue` en un `switch` sin ciclo):
+
+```cpp
+int main() {
+    int op = 1;
+    switch (op) {
+        case 1: continue;   // Error semántico en línea 4, columna 17: continue solo puede ir dentro de un ciclo
+    }
+    return 0;
+}
+```
+
+Una CFG sí podría expresar esta regla con tres versiones de cada no terminal de sentencia: fuera de todo, dentro de un `switch` y dentro de un ciclo. La parte de sentencias de la gramática se triplicaría. Por eso la revisamos aquí, como hacen los compiladores.
+
+## Cómo se implementaron S6, S7 y S8
+
+- `minicpp/semantic.py`, sección 4: `visit_break_stmt` y `visit_continue_stmt` (S8); `check_call` y `call_arguments` (S6); `enter_function`, `exit_function` y `visit_return_stmt` (S7).
+- S8 usa dos contadores, `loop_depth` y `switch_depth`, que suben al entrar a un ciclo o a un `switch` y bajan al salir. Se actualizan en `visit()` (sección 1) y no en `visit_for_stmt` ni en `visit_switch_stmt`, para no reemplazar esos métodos de la sección 2.
+- S6 y S7 se enganchan en dos métodos de la sección 2: `visit_primary` llama a `check_call` cuando el nombre existe y es una llamada, y `declare_function` llama a `enter_function` antes del cuerpo y a `exit_function` después.
+- Pruebas: `tests/test_semantic_functions.py`, con los prefijos `test_s6_`, `test_s7_` y `test_s8_`.

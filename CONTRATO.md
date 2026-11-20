@@ -62,7 +62,7 @@ Decidimos entregar en la Fase 1 las tres etapas de un compilador: lexer, parser 
 - **Etiquetas de `case`.** Solo aceptan literales: entero, entero negativo, carácter, `true` o `false`. C++ acepta cualquier expresión constante, pero eso queda fuera.
 - **Sentencia vacía.** Se acepta un `;` suelto.
 - **Variables en asignaciones e incrementos.** El lado izquierdo de una asignación y el operando de `++` o `--` deben ser una variable. Con la estructura de niveles de la gramática, decidirlo con un solo token no es posible (`a = 1` y `a + 1` empiezan igual): haría falta LL(2) o duplicar toda la cadena de expresiones. Por eso el parser lo revisa en el código y lanza `SyntacticError`. Es una limitación del análisis LL(1) con esta gramática, no de las CFG.
-- **`break` y `continue` fuera de un ciclo.** El parser los acepta en cualquier lugar. Ahora los revisa el analizador semántico (regla S8). Una CFG sí podría expresarlo duplicando los no terminales de sentencia en una versión "dentro de ciclo", pero la gramática crecería casi al doble; los compiladores lo revisan en el análisis semántico.
+- **`break` y `continue` fuera de un ciclo.** El parser los acepta en cualquier lugar. Ahora los revisa el analizador semántico (regla S8). Una CFG sí podría expresarlo con tres versiones de cada no terminal de sentencia (fuera de todo, dentro de un `switch` y dentro de un ciclo), pero la parte de sentencias de la gramática se triplicaría; los compiladores lo revisan en el análisis semántico.
 
 ## 3. Idioma
 
@@ -288,8 +288,8 @@ Las reglas S1 a S5 son las mínimas que pide el enunciado. Las S6 a S9 las agreg
 | S3 | En una asignación, el tipo del valor es compatible con el de la variable | P5 | no se puede asignar string a int |
 | S4 | Los operandos de cada operador tienen tipos válidos para ese operador | P5 | el operador % necesita operandos enteros y recibió double |
 | S5 | Ámbitos: una variable no se ve fuera del bloque donde se declaró | P4 | la variable 'i' no está declarada |
-| S6 | Llamadas: el nombre es una función, la cantidad de argumentos coincide y cada argumento es compatible con su parámetro | P1 | 'suma' espera 2 argumentos y recibió 3 |
-| S7 | `return`: una función `void` no devuelve valor y una función con tipo devuelve un valor compatible | P1 | la función 'main' debe devolver un valor de tipo int |
+| S6 | Llamadas: el nombre es una función, la cantidad de argumentos coincide y cada argumento es compatible con su parámetro. Un nombre de función no se usa como variable (sin paréntesis) | P1 | 'suma' espera 2 argumentos y recibió 3 |
+| S7 | `return`: una función `void` no devuelve valor; una función con tipo tiene al menos un `return` y cada uno devuelve un valor compatible. `main` puede terminar sin `return` (devuelve 0, como en C++). No se revisa que todos los caminos devuelvan un valor | P1 | la función 'suma' debe devolver un valor de tipo int |
 | S8 | `break` solo dentro de un ciclo o de un `switch`; `continue` solo dentro de un ciclo | P1 | break solo puede ir dentro de un ciclo o de un switch |
 | S9 | La condición de `if`, `while`, `do-while` y `for` no puede ser `string` ni una llamada a función `void` | P5 | la condición del if no puede ser de tipo string |
 
