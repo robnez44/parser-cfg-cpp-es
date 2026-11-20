@@ -10,8 +10,6 @@ En la Fase 1 implementamos en Python las tres primeras etapas de un compilador p
 | Parser | `minicpp/parser.py` | Que los tokens sigan la gramática de `grammars/cpp.gram` | Libre de contexto (tipo 2) |
 | Analizador semántico | `minicpp/semantic.py` | Declaraciones, ámbitos y tipos, que una gramática libre de contexto no puede revisar | Sensible al contexto (tipo 1) |
 
-El enunciado llama `semantico.py` al analizador semántico. Nosotros lo dejamos como `semantic.py` porque todo el código está en inglés.
-
 El subconjunto de C++ está descrito en [docs/especificacion_subconjunto.md](docs/especificacion_subconjunto.md), y la definición formal de los tokens, con sus expresiones regulares y autómatas, en [docs/tokens.md](docs/tokens.md). Las decisiones del grupo y la forma en que se conectan los módulos están en [CONTRATO.md](CONTRATO.md).
 
 ## Instalación
