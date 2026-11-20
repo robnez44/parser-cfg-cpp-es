@@ -3,3 +3,10 @@ __pycache__/
 *.pyc
 .pytest_cache/
 .DS_Store
+CLAUDE.md
+
+# editors and Windows
+.vscode/
+.idea/
+Thumbs.db
+desktop.ini
