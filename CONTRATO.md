@@ -402,18 +402,15 @@ class SemanticAnalyzer:
 ├── cases/
 │   ├── valid/                    P3
 │   └── invalid/                  P3
-├── tests/
-│   ├── test_lexer.py             P2
-│   ├── test_parser_units.py      P1
-│   ├── test_symbols.py           P4
-│   ├── test_semantic_scopes.py   P4
-│   ├── test_semantic_types.py    P5
-│   ├── test_semantic_functions.py  P1
-│   ├── test_verifier.py          P4 (ya hecho)
-│   └── test_cases.py             P3
-└── video/
-    ├── guion.md                  P3
-    └── programs/                 P3 (los programas que se corren en el video)
+└── tests/
+    ├── test_lexer.py             P2
+    ├── test_parser_units.py      P1
+    ├── test_symbols.py           P4
+    ├── test_semantic_scopes.py   P4
+    ├── test_semantic_types.py    P5
+    ├── test_semantic_functions.py  P1
+    ├── test_verifier.py          P4 (ya hecho)
+    └── test_cases.py             P3
 ```
 
 ### Entorno con uv

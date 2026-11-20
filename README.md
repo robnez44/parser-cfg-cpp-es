@@ -97,7 +97,6 @@ Los programas de prueba completos están en `cases/valid/` y `cases/invalid/`. L
 | `cases/` | Programas válidos e inválidos para probar las tres etapas |
 | `tests/` | Pruebas con pytest |
 | `docs/` | Especificación del subconjunto, de los tokens y de las reglas semánticas |
-| `video/` | Guion y programas del video |
 
 ## Reflexión: lo que una gramática libre de contexto no puede revisar
 
