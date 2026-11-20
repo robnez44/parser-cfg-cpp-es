@@ -435,13 +435,13 @@ Todo el grupo usa uv en lugar de `pip` y `venv`. uv crea el entorno virtual, ins
 - `uv sync` crea `.venv/` e instala la versión de Python de `.python-version` si no está en la computadora.
 - Solo agrega dependencias el dueño del componente que las necesita: NLTK lo agrega P2. El cambio en `pyproject.toml` y `uv.lock` va en un pull request propio.
 - Cada vez que se agrega una dependencia, se regenera `requirements.txt` y se suben juntos `pyproject.toml`, `uv.lock` y `requirements.txt`.
-- `requirements.txt` existe para ver las dependencias de un vistazo y para quien no tenga uv: `pip install -r requirements.txt` instala lo mismo. Todavía no está en el repositorio; P2 lo genera en su primer commit.
+- `requirements.txt` existe para ver las dependencias de un vistazo y para quien no tenga uv: `pip install -r requirements.txt` instala lo mismo. Ya está en el repositorio; se regenera con el comando de la tabla cada vez que cambian las dependencias.
 
 ### Forma de trabajo con Git
 
-- `main` solo recibe cambios por pull request.
-- Ramas: `feat/parser` (P1), `feat/lexer` (P2), `feat/tests` (P3), `feat/verifier` y `feat/symbols` (P4), `feat/types` (P5). El trabajo de P1 en el semántico va en `feat/semantic`.
-- Lo primero es unir a `main` las ramas `feat/parser` y `feat/verifier`, que ya están terminadas. Se unen sin conflictos y juntas pasan 187 pruebas.
+- Todos los pull requests van a `develop`, la rama de integración. `main` no se toca hasta la entrega: al final se une `develop` a `main` con un pull request.
+- Ramas: `feat/parser` (P1), `feat/lexer` (P2), `feat/test-cases` (P3), `feat/verifier` y `feat/symbols` (P4), `feat/types` (P5). El trabajo de P1 en el semántico va en `feat/semantic`.
+- Las ramas de la fase (parser, verificador, lexer, tabla de símbolos, semántico, tipos y casos de prueba) ya están unidas a `develop`.
 - Antes de abrir un pull request, `uv run pytest` tiene que pasar completo.
 - Los mensajes de commit siguen Conventional Commits, en inglés: `tipo(alcance): descripción`. Tipos: `feat`, `fix`, `test`, `docs`, `refactor`, `build`, `chore`, `style`. Alcances: `lexer`, `parser`, `semantic`, `symbols`, `types`, `cli`, `cases`, `contract`.
 - `pyproject.toml`, `uv.lock`, `requirements.txt` y `.python-version` se suben al repo. `.venv/` no se sube.
@@ -477,11 +477,11 @@ Tiempo total del video: unos 9 minutos y medio. Si algo se alarga, se recorta la
 - El semántico no espera al lexer: sus pruebas usan `toks()` hasta que `tokenize()` exista.
 - `analyze()` y `test_cases.py` sí necesitan el lexer de P2.
 - P3 escribe los programas de `cases/` desde las secciones 4 y 9, sin esperar código.
-- El video se graba cuando `uv run pytest` pasa completo en `main`.
+- El video se graba cuando `uv run pytest` pasa completo en `develop`.
 
 ### Pendientes del parser (P1)
 
-El parser está completo: las 68 reglas de `cpp.gram` tienen su método y 141 pruebas en `tests/test_parser_units.py`. Queda corregir el docstring de `require_variable`, que todavía dice que la regla no cabe en LL(1) (la explicación correcta está en la sección 2). La recuperación en modo pánico solo se hace si sobra tiempo al final de la fase.
+El parser está completo: las 68 reglas de `cpp.gram` tienen su método y 141 pruebas en `tests/test_parser_units.py`. El docstring de `require_variable` ya explica que revisar el destino de una asignación en el código es un límite del análisis LL(1) con esta gramática, no de las CFG (sección 2). La recuperación en modo pánico solo se hace si sobra tiempo al final de la fase.
 
 ### Cierre de la Fase 1
 
