@@ -1,5 +1,7 @@
 # parser-cfg-cpp-es
 
+> **Video de la Fase 1:** https://drive.google.com/file/d/10WEc90ypi8l6zpKv5QwHnCzPubSXIwIk/view?usp=sharing
+
 Proyecto de Teoría de Lenguajes de Programación, UCA, ciclo 02-2026.
 
 En la Fase 1 implementamos en Python las tres primeras etapas de un compilador para un subconjunto de C++: el lexer, el parser y el analizador semántico. Un programa pasa por las tres en ese orden, y si una falla, las siguientes no corren.
