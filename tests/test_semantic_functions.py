@@ -222,9 +222,9 @@ def test_s7_main_cannot_have_an_empty_return():
     assert lines("int main() {\n return;\n}") == [2]
 
 
-def test_s7_function_with_a_type_without_return_points_at_its_closing_brace():
+def test_s7_function_with_a_type_without_return_points_at_its_name():
     assert messages("int suma(int a, int b) {\n int c = a + b;\n}") == [
-        "Error semántico en línea 3, columna 1: "
+        "Error semántico en línea 1, columna 5: "
         "la función 'suma' debe devolver un valor de tipo int"
     ]
 
@@ -235,7 +235,7 @@ def test_s7_empty_return_is_not_also_reported_as_missing():
 
 def test_s7_each_function_is_checked_on_its_own():
     source = "int f() {\n}\nint g() {\n return 1;\n}\nint h() {\n}"
-    assert lines(source) == [2, 7]
+    assert lines(source) == [1, 6]
 
 
 def test_s7_undeclared_name_in_the_returned_value_is_still_reported():
@@ -249,3 +249,62 @@ def test_s7_does_not_check_that_every_path_returns():
     # g++ only warns here ("control reaches end of non-void function").
     # Checking every path needs control flow analysis (CONTRATO.md, section 9, S7).
     assert check("int f(int x) {\n if (x > 0) return 1;\n}") == []
+
+
+# ---------- S6: types of the arguments ----------
+def test_s6_argument_with_an_incompatible_type():
+    assert messages(FUNCTIONS + "int main() {\n return suma(1, \"dos\");\n}") == [
+        "Error semántico en línea 11, columna 17: "
+        "el argumento 2 de 'suma' debe ser int y recibió string"
+    ]
+
+
+def test_s6_numeric_arguments_convert_as_in_an_assignment():
+    assert check(FUNCTIONS + "int main() {\n return suma(1.5, 'c');\n}") == []
+
+
+def test_s6_string_parameter_does_not_accept_a_number():
+    source = "string eco(string s) {\n return s;\n}\nint main() {\n eco(5);\n}"
+    assert lines(source) == [5]
+
+
+def test_s6_call_to_a_void_function_as_an_argument():
+    source = (
+        "void nada() {\n}\n"
+        "int doble(int x) {\n return x * 2;\n}\n"
+        "int main() {\n return doble(nada());\n}"
+    )
+    assert messages(source) == [
+        "Error semántico en línea 7, columna 15: "
+        "el argumento 1 de 'doble' debe ser int y recibió void"
+    ]
+
+
+def test_s6_types_are_not_compared_when_the_count_is_wrong():
+    assert messages(FUNCTIONS + "int main() {\n return suma(\"a\");\n}") == [
+        "Error semántico en línea 11, columna 9: 'suma' espera 2 argumentos y recibió 1"
+    ]
+
+
+def test_s6_error_inside_an_argument_is_not_reported_twice():
+    assert lines(FUNCTIONS + "int main() {\n return suma(\"a\" - 1, 2);\n}") == [11]
+
+
+# ---------- S7: type of the returned value ----------
+def test_s7_returned_value_with_an_incompatible_type():
+    assert messages("int calcular() {\n return \"texto\";\n}") == [
+        "Error semántico en línea 2, columna 9: "
+        "la función 'calcular' debe devolver int y recibió string"
+    ]
+
+
+def test_s7_numeric_value_converts_to_the_return_type():
+    assert check("int f() {\n return 2.5;\n}\nbool g() {\n return 1;\n}") == []
+
+
+def test_s7_string_function_does_not_return_a_number():
+    assert lines("string f() {\n return 1;\n}") == [2]
+
+
+def test_s7_returning_a_call_to_a_void_function():
+    assert lines("void g() {\n}\nint f() {\n return g();\n}") == [4]

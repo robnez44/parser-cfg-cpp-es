@@ -298,7 +298,7 @@ int main() {
 
 - Una variable local con el mismo nombre que una función la tapa, como en C++: después de `int suma = 1;`, la llamada `suma(1, 2)` da "'suma' no es una función".
 - Con un parámetro el mensaje dice "1 argumento", en singular.
-- Falta revisar que el tipo de cada argumento sea compatible con su parámetro. Se agrega cuando exista `type_of()` (S3 y S4).
+- Cada argumento tiene que ser compatible con su parámetro, con la misma regla que `=`: los dos numéricos o los dos `string`. `suma(1, "dos")` da "el argumento 2 de 'suma' debe ser int y recibió string". Los tipos solo se comparan si la cantidad de argumentos coincide, para no sumar errores por la misma causa.
 - `cin >> cero;` con `cero` función no se detecta, porque los nombres de `cin` se revisan aparte, en S1.
 
 ## S7: `return` según el tipo de la función
@@ -309,7 +309,7 @@ Se revisa cada `return` y, al terminar el cuerpo, si la función tenía alguno:
 |---|---|---|
 | `void` con `return 5;` | Error | Error |
 | Con tipo y `return;` | Error, incluido `main` | Error |
-| Con tipo y ningún `return` | Error en la `}` del cuerpo | Advertencia: `no return statement in function returning non-void` |
+| Con tipo y ningún `return` | Error en el nombre de la función | Advertencia: `no return statement in function returning non-void` |
 | `main` sin ningún `return` | Válido, devuelve 0 | Válido |
 
 Válido:
@@ -343,9 +343,9 @@ int doble(int x) {
 Inválido (ningún `return`):
 
 ```cpp
-int suma(int a, int b) {
+int suma(int a, int b) {    // Error semántico en línea 1, columna 5: la función 'suma' debe devolver un valor de tipo int
     int c = a + b;
-}                       // Error semántico en línea 3, columna 1: la función 'suma' debe devolver un valor de tipo int
+}
 ```
 
 **Limitación.** No se revisa que todos los caminos devuelvan un valor. Esto pasa sin error:
@@ -358,7 +358,7 @@ int signo(int x) {
 
 g++ lo compila con la advertencia `control reaches end of non-void function`. Para detectarlo hay que seguir cada camino de ejecución (las dos ramas del `if`, ciclos que pueden no ejecutarse, el `default` del `switch`), y eso ya es análisis de flujo de control, que el enunciado no pide.
 
-Falta revisar que el valor devuelto sea compatible con el tipo de la función (`return "hola";` en una función `int`). Se agrega cuando exista `type_of()`.
+El valor devuelto tiene que ser compatible con el tipo de la función, con la misma regla que `=`. `return "hola";` en una función `int` da "la función 'f' debe devolver int y recibió string". Un `double` en una función `int` es válido, porque entre números C++ convierte solo.
 
 ## S8: `break` y `continue`
 
@@ -408,4 +408,5 @@ Una CFG sí podría expresar esta regla con tres versiones de cada no terminal d
 - `minicpp/semantic.py`, sección 4: `visit_break_stmt` y `visit_continue_stmt` (S8); `check_call` y `call_arguments` (S6); `enter_function`, `exit_function` y `visit_return_stmt` (S7).
 - S8 usa dos contadores, `loop_depth` y `switch_depth`, que suben al entrar a un ciclo o a un `switch` y bajan al salir. Se actualizan en `visit()` (sección 1) y no en `visit_for_stmt` ni en `visit_switch_stmt`, para no reemplazar esos métodos de la sección 2.
 - S6 y S7 se enganchan en dos métodos de la sección 2: `visit_primary` llama a `check_call` cuando el nombre existe y es una llamada, y `declare_function` llama a `enter_function` antes del cuerpo y a `exit_function` después.
+- S6 y S7 comparan tipos con `compatible()`, la misma regla de `=` de la sección 3. Usa `type_of()` e `is_numeric()`.
 - Pruebas: `tests/test_semantic_functions.py`, con los prefijos `test_s6_`, `test_s7_` y `test_s8_`.

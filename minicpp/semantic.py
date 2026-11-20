@@ -140,7 +140,7 @@ class SemanticAnalyzer:
                                 param_token.line, param_token.column))
         self.enter_function(function)               # S7, section 4
         self.generic_visit(body.children[1])        # Block -> LBRACE StmtList RBRACE: no extra scope
-        self.exit_function(body)                    # S7, section 4
+        self.exit_function()                        # S7, section 4
         self.symbols.exit_scope()
 
     def visit_global_decl(self, node: Node) -> None:
@@ -489,41 +489,50 @@ class SemanticAnalyzer:
         return found
 
     def check_call(self, symbol: Symbol, token: Token, id_tail: Node) -> None:
-        """S6: the called name is a function and gets as many arguments as it has parameters.
+        """S6: the called name is a function, gets as many arguments as it has parameters,
+        and each argument is compatible with its parameter.
 
         IdTail -> LPAREN Args RPAREN
-        The types of the arguments are checked once type_of() exists (section 3, P5).
+        The types are only compared when the count matches, so one mistake gives one error.
         """
         name = token.lexeme
         if symbol.kind != "function":
             self.error(token, f"'{name}' no es una función")
             return
-        expected = len(symbol.params)
-        received = len(self.call_arguments(id_tail.children[1]))
+        arguments = self.call_arguments(id_tail.children[1])
+        expected, received = len(symbol.params), len(arguments)
         if expected != received:
             word = "argumento" if expected == 1 else "argumentos"
             self.error(token, f"'{name}' espera {expected} {word} y recibió {received}")
+            return
+        for position, (param_type, argument) in enumerate(zip(symbol.params, arguments), 1):
+            argument_type = self.type_of(argument)
+            if argument_type is not None and not self.compatible(param_type, argument_type):
+                detail = (f"el argumento {position} de '{name}' "
+                          f"debe ser {param_type} y recibió {argument_type}")
+                self.error(argument.leaves()[0], detail)
 
     def enter_function(self, function: Symbol) -> None:
         """Remember the function whose body is being checked (rule S7)."""
         self.current_function = function
         self.return_count = 0
 
-    def exit_function(self, body: Node) -> None:
+    def exit_function(self) -> None:
         """S7: a function with a type has at least one return. main may end without one.
 
         It does not check that every path returns: `if (x) return 1;` alone is accepted.
-        The error points at the closing brace, where the function ends without a value.
+        The error points at the name of the function, as in every rule (CONTRATO.md, section 9).
         """
         function = self.current_function
         if function.type == "void" or function.name == "main" or self.return_count > 0:
             return
-        self.error(body.children[2].token, self.missing_value(function))
+        self.errors.append(SemanticError(function.line, function.column,
+                                         self.missing_value(function)))
 
     def visit_return_stmt(self, node: Node) -> None:
         """ReturnStmt -> RETURN OptExpr SEMICOLON   (S7: the value matches the function type)
 
-        OptExpr -> Expr | ε. The type of the value is checked once type_of() exists (P5).
+        OptExpr -> Expr | ε. The value must be compatible with the return type, as in `=`.
         """
         self.return_count += 1
         function = self.current_function
@@ -534,8 +543,19 @@ class SemanticAnalyzer:
                        f"la función '{function.name}' es void y no puede devolver un valor")
         elif function.type != "void" and not has_value:
             self.error(token, self.missing_value(function))
+        elif has_value:
+            value = node.children[1].children[0]            # OptExpr -> Expr
+            value_type = self.type_of(value)
+            if value_type is not None and not self.compatible(function.type, value_type):
+                detail = (f"la función '{function.name}' "
+                          f"debe devolver {function.type} y recibió {value_type}")
+                self.error(value.leaves()[0], detail)
         self.generic_visit(node)                    # the returned expression may use names (S1)
 
     @staticmethod
     def missing_value(function: Symbol) -> str:
         return f"la función '{function.name}' debe devolver un valor de tipo {function.type}"
+
+    def compatible(self, target: str, value: str) -> bool:
+        """The rule of `=` (CONTRATO.md, section 9): both numeric, or both string."""
+        return (self.is_numeric(target) and self.is_numeric(value)) or target == value == "string"
