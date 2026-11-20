@@ -1,8 +1,8 @@
 # Especificación del subconjunto de C++ para la Fase 1
 
-Proyecto TLP02-2026, grupo: [nombre del grupo]
+Proyecto TLP02-2026, grupo: Chomsky vs. Transformers
 
-Integrantes: [nombres]
+Integrantes: Roberto Eliseo, Diego Enrique, Rene Rivera, Diego Pacheco y César Eduardo
 
 ## Lenguaje elegido
 
@@ -28,7 +28,7 @@ Arreglos, punteros, referencias, estructuras y clases, el operador ternario, ope
 - Tomamos `string` como palabra reservada para simplificar, aunque en C++ es una clase de la biblioteca estándar.
 - En un `if` anidado, el `else` se asocia al `if` más cercano, igual que en C++. Este es el único punto en que la gramática no es LL(1), y lo resolvemos de forma explícita.
 - Para `cout <<` aceptamos expresiones aritméticas. Una comparación necesita paréntesis, como `cout << (a < b)`, igual que en C++ por la precedencia de `<<`. Para `cin >>` aceptamos solo variables.
-- El análisis semántico queda fuera: no revisamos tipos ni si una variable fue declarada antes de usarse.
+- El análisis semántico se hace en una etapa aparte, sobre el árbol del parser: revisa declaraciones, ámbitos y tipos (reglas S1 a S9 en `docs/reglas_semanticas.md`).
 
 ## Ejemplo de programa aceptado
 
