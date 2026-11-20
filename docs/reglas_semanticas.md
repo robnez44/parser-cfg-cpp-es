@@ -265,7 +265,7 @@ int main() {
 }
 ```
 
-Una CFG sí podría expresar esta regla: habría que duplicar los no terminales de sentencia en una versión "dentro de un ciclo" y otra "dentro de un `switch`", y la gramática crecería casi al doble. Por eso la revisamos aquí, como hacen los compiladores.
+Una CFG sí podría expresar esta regla con tres versiones de cada no terminal de sentencia: fuera de todo, dentro de un `switch` y dentro de un ciclo. La parte de sentencias de la gramática se triplicaría. Por eso la revisamos aquí, como hacen los compiladores.
 
 ## Cómo se implementaron S6, S7 y S8
 

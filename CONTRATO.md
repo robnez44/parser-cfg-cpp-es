@@ -62,7 +62,7 @@ Decidimos entregar en la Fase 1 las tres etapas de un compilador: lexer, parser 
 - **Etiquetas de `case`.** Solo aceptan literales: entero, entero negativo, carácter, `true` o `false`. C++ acepta cualquier expresión constante, pero eso queda fuera.
 - **Sentencia vacía.** Se acepta un `;` suelto.
 - **Variables en asignaciones e incrementos.** El lado izquierdo de una asignación y el operando de `++` o `--` deben ser una variable. Con la estructura de niveles de la gramática, decidirlo con un solo token no es posible (`a = 1` y `a + 1` empiezan igual): haría falta LL(2) o duplicar toda la cadena de expresiones. Por eso el parser lo revisa en el código y lanza `SyntacticError`. Es una limitación del análisis LL(1) con esta gramática, no de las CFG.
-- **`break` y `continue` fuera de un ciclo.** El parser los acepta en cualquier lugar. Ahora los revisa el analizador semántico (regla S8). Una CFG sí podría expresarlo duplicando los no terminales de sentencia en una versión "dentro de ciclo", pero la gramática crecería casi al doble; los compiladores lo revisan en el análisis semántico.
+- **`break` y `continue` fuera de un ciclo.** El parser los acepta en cualquier lugar. Ahora los revisa el analizador semántico (regla S8). Una CFG sí podría expresarlo con tres versiones de cada no terminal de sentencia (fuera de todo, dentro de un `switch` y dentro de un ciclo), pero la parte de sentencias de la gramática se triplicaría; los compiladores lo revisan en el análisis semántico.
 
 ## 3. Idioma
 
