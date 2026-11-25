@@ -1,0 +1,100 @@
+word	type	upos	lemma	gender	number	tense
+el	DET_MS	DET	el	M	S	
+la	DET_FS	DET	el	F	S	
+los	DET_MP	DET	el	M	P	
+las	DET_FP	DET	el	F	P	
+un	DET_MS	DET	uno	M	S	
+una	DET_FS	DET	uno	F	S	
+unos	DET_MP	DET	uno	M	P	
+unas	DET_FP	DET	uno	F	P	
+niño	NOUN_MS	NOUN	niño	M	S	
+niños	NOUN_MP	NOUN	niño	M	P	
+perro	NOUN_MS	NOUN	perro	M	S	
+perros	NOUN_MP	NOUN	perro	M	P	
+gato	NOUN_MS	NOUN	gato	M	S	
+gatos	NOUN_MP	NOUN	gato	M	P	
+libro	NOUN_MS	NOUN	libro	M	S	
+libros	NOUN_MP	NOUN	libro	M	P	
+maestro	NOUN_MS	NOUN	maestro	M	S	
+maestros	NOUN_MP	NOUN	maestro	M	P	
+árbol	NOUN_MS	NOUN	árbol	M	S	
+árboles	NOUN_MP	NOUN	árbol	M	P	
+parque	NOUN_MS	NOUN	parque	M	S	
+parques	NOUN_MP	NOUN	parque	M	P	
+niña	NOUN_FS	NOUN	niña	F	S	
+niñas	NOUN_FP	NOUN	niña	F	P	
+manzana	NOUN_FS	NOUN	manzana	F	S	
+manzanas	NOUN_FP	NOUN	manzana	F	P	
+casa	NOUN_FS	NOUN	casa	F	S	
+casas	NOUN_FP	NOUN	casa	F	P	
+mesa	NOUN_FS	NOUN	mesa	F	S	
+mesas	NOUN_FP	NOUN	mesa	F	P	
+maestra	NOUN_FS	NOUN	maestra	F	S	
+maestras	NOUN_FP	NOUN	maestra	F	P	
+carta	NOUN_FS	NOUN	carta	F	S	
+cartas	NOUN_FP	NOUN	carta	F	P	
+escuela	NOUN_FS	NOUN	escuela	F	S	
+escuelas	NOUN_FP	NOUN	escuela	F	P	
+pequeño	ADJ_MS	ADJ	pequeño	M	S	
+pequeña	ADJ_FS	ADJ	pequeño	F	S	
+pequeños	ADJ_MP	ADJ	pequeño	M	P	
+pequeñas	ADJ_FP	ADJ	pequeño	F	P	
+rojo	ADJ_MS	ADJ	rojo	M	S	
+roja	ADJ_FS	ADJ	rojo	F	S	
+rojos	ADJ_MP	ADJ	rojo	M	P	
+rojas	ADJ_FP	ADJ	rojo	F	P	
+alto	ADJ_MS	ADJ	alto	M	S	
+alta	ADJ_FS	ADJ	alto	F	S	
+altos	ADJ_MP	ADJ	alto	M	P	
+altas	ADJ_FP	ADJ	alto	F	P	
+viejo	ADJ_MS	ADJ	viejo	M	S	
+vieja	ADJ_FS	ADJ	viejo	F	S	
+viejos	ADJ_MP	ADJ	viejo	M	P	
+viejas	ADJ_FP	ADJ	viejo	F	P	
+nuevo	ADJ_MS	ADJ	nuevo	M	S	
+nueva	ADJ_FS	ADJ	nuevo	F	S	
+nuevos	ADJ_MP	ADJ	nuevo	M	P	
+nuevas	ADJ_FP	ADJ	nuevo	F	P	
+blanco	ADJ_MS	ADJ	blanco	M	S	
+blanca	ADJ_FS	ADJ	blanco	F	S	
+blancos	ADJ_MP	ADJ	blanco	M	P	
+blancas	ADJ_FP	ADJ	blanco	F	P	
+come	VERB_S	VERB	comer		S	presente
+comen	VERB_P	VERB	comer		P	presente
+comió	VERB_S	VERB	comer		S	preterito
+comieron	VERB_P	VERB	comer		P	preterito
+lee	VERB_S	VERB	leer		S	presente
+leen	VERB_P	VERB	leer		P	presente
+leyó	VERB_S	VERB	leer		S	preterito
+leyeron	VERB_P	VERB	leer		P	preterito
+escribe	VERB_S	VERB	escribir		S	presente
+escriben	VERB_P	VERB	escribir		P	presente
+escribió	VERB_S	VERB	escribir		S	preterito
+escribieron	VERB_P	VERB	escribir		P	preterito
+ve	VERB_S	VERB	ver		S	presente
+ven	VERB_P	VERB	ver		P	presente
+vio	VERB_S	VERB	ver		S	preterito
+vieron	VERB_P	VERB	ver		P	preterito
+busca	VERB_S	VERB	buscar		S	presente
+buscan	VERB_P	VERB	buscar		P	presente
+buscó	VERB_S	VERB	buscar		S	preterito
+buscaron	VERB_P	VERB	buscar		P	preterito
+corre	VERB_S	VERB	correr		S	presente
+corren	VERB_P	VERB	correr		P	presente
+corrió	VERB_S	VERB	correr		S	preterito
+corrieron	VERB_P	VERB	correr		P	preterito
+duerme	VERB_S	VERB	dormir		S	presente
+duermen	VERB_P	VERB	dormir		P	presente
+durmió	VERB_S	VERB	dormir		S	preterito
+durmieron	VERB_P	VERB	dormir		P	preterito
+rápidamente	ADV	ADV	rápidamente			
+lentamente	ADV	ADV	lentamente			
+ayer	ADV	ADV	ayer			
+hoy	ADV	ADV	hoy			
+siempre	ADV	ADV	siempre			
+temprano	ADV	ADV	temprano			
+en	PREP	ADP	en			
+con	PREP	ADP	con			
+de	PREP	ADP	de			
+sobre	PREP	ADP	sobre			
+.	PERIOD	PUNCT	.			

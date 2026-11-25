@@ -1,0 +1,18 @@
+# Grammar for the Spanish subset (Phase 2), LL(1) WITHOUT agreement
+# Same structure as es.gram with one token type per category. It accepts "los niño come".
+# It is not used by the parser: it exists to measure how much the grammar grows
+# when agreement is added (compare the production counts of es_base.gram and es.gram).
+# Accepted LL(1) conflict: M[NpTail, PREP], as in es.gram.
+
+Sentence -> Clause EndMark
+Clause -> NounPhrase VerbPhrase
+EndMark -> PERIOD | ε
+NounPhrase -> DET NOUN AdjList NpTail
+AdjList -> ADJ AdjList | ε
+NpTail -> PrepPhrase NpTail | ε
+PrepPhrase -> PREP NounPhrase
+VerbPhrase -> VERB VpTail
+VpTail -> Object AdvOpt PpList
+Object -> NounPhrase | ε
+AdvOpt -> ADV | ε
+PpList -> PrepPhrase PpList | ε
