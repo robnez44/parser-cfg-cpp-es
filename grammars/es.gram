@@ -1,0 +1,36 @@
+# Grammar for the Spanish subset (Phase 2), LL(1) with agreement
+# Format: same as grammars/cpp.gram. Terminals are the token types of the lexicon.
+# Agreement is written into the grammar by duplicating nonterminals:
+#   number between subject and verb (Sing / Plur),
+#   gender and number between determiner, noun and adjectives (MS, FS, MP, FP).
+# Accepted LL(1) conflict: M[NpTail, PREP] (prepositional phrase attachment).
+# The parser chooses NpTail -> PrepPhrase NpTail: the phrase attaches to the nearest noun,
+# the same decision as the dangling else of the C++ grammar.
+
+# ---------- Sentence ----------
+Sentence -> Clause EndMark
+Clause -> NpSing VpSing | NpPlur VpPlur
+EndMark -> PERIOD | ε
+
+# ---------- Noun phrases ----------
+NounPhrase -> NpSing | NpPlur
+NpSing -> NpMS | NpFS
+NpPlur -> NpMP | NpFP
+NpMS -> DET_MS NOUN_MS AdjListMS NpTail
+NpFS -> DET_FS NOUN_FS AdjListFS NpTail
+NpMP -> DET_MP NOUN_MP AdjListMP NpTail
+NpFP -> DET_FP NOUN_FP AdjListFP NpTail
+AdjListMS -> ADJ_MS AdjListMS | ε
+AdjListFS -> ADJ_FS AdjListFS | ε
+AdjListMP -> ADJ_MP AdjListMP | ε
+AdjListFP -> ADJ_FP AdjListFP | ε
+NpTail -> PrepPhrase NpTail | ε
+PrepPhrase -> PREP NounPhrase
+
+# ---------- Verb phrases ----------
+VpSing -> VERB_S VpTail
+VpPlur -> VERB_P VpTail
+VpTail -> Object AdvOpt PpList
+Object -> NounPhrase | ε
+AdvOpt -> ADV | ε
+PpList -> PrepPhrase PpList | ε

@@ -1,0 +1,67 @@
+# LL(1) grammar for the Spanish subset (Phase 2), LL(1) with agreement, in class notation.
+# Same grammar as es.gram, rule by rule: no left recursion and no alternatives
+# sharing a common prefix. ε is the empty string.
+# Only LL(1) conflict: <np_tail>. On "PREP", the parser chooses <prep_phrase> <np_tail>.
+# Generated from es.gram (python -m verifier grammars/es.gram --class-notation). Do not edit by hand.
+
+# Sentence
+<sentence> ::= <clause> <end_mark>
+
+<clause> ::= <np_sing> <vp_sing>
+           | <np_plur> <vp_plur>
+
+<end_mark> ::= "PERIOD"
+             | ε
+
+
+# Noun phrases
+<noun_phrase> ::= <np_sing>
+                | <np_plur>
+
+<np_sing> ::= <np_m_s>
+            | <np_f_s>
+
+<np_plur> ::= <np_m_p>
+            | <np_f_p>
+
+<np_m_s> ::= "DET_MS" "NOUN_MS" <adj_list_m_s> <np_tail>
+
+<np_f_s> ::= "DET_FS" "NOUN_FS" <adj_list_f_s> <np_tail>
+
+<np_m_p> ::= "DET_MP" "NOUN_MP" <adj_list_m_p> <np_tail>
+
+<np_f_p> ::= "DET_FP" "NOUN_FP" <adj_list_f_p> <np_tail>
+
+<adj_list_m_s> ::= "ADJ_MS" <adj_list_m_s>
+                 | ε
+
+<adj_list_f_s> ::= "ADJ_FS" <adj_list_f_s>
+                 | ε
+
+<adj_list_m_p> ::= "ADJ_MP" <adj_list_m_p>
+                 | ε
+
+<adj_list_f_p> ::= "ADJ_FP" <adj_list_f_p>
+                 | ε
+
+<np_tail> ::= <prep_phrase> <np_tail>
+            | ε
+
+<prep_phrase> ::= "PREP" <noun_phrase>
+
+
+# Verb phrases
+<vp_sing> ::= "VERB_S" <vp_tail>
+
+<vp_plur> ::= "VERB_P" <vp_tail>
+
+<vp_tail> ::= <object> <adv_opt> <pp_list>
+
+<object> ::= <noun_phrase>
+           | ε
+
+<adv_opt> ::= "ADV"
+            | ε
+
+<pp_list> ::= <prep_phrase> <pp_list>
+            | ε

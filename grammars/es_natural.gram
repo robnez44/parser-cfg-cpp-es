@@ -1,0 +1,10 @@
+# Natural grammar for the Spanish subset (Phase 2), as one would write it without thinking of LL(1)
+# It has left recursion and it is ambiguous: in "el maestro lee la carta en la casa" the phrase
+# "en la casa" can modify "carta" (NounPhrase -> NounPhrase PrepPhrase) or "lee"
+# (VerbPhrase -> VerbPhrase PrepPhrase). Both derivations exist, so the sentence has two trees.
+# It is not used by the parser: it is the starting point of the formal analysis.
+
+Sentence -> NounPhrase VerbPhrase
+NounPhrase -> DET NOUN | NounPhrase ADJ | NounPhrase PrepPhrase
+VerbPhrase -> VERB | VERB NounPhrase | VerbPhrase ADV | VerbPhrase PrepPhrase
+PrepPhrase -> PREP NounPhrase
