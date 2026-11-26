@@ -1,0 +1,72 @@
+Eres un analizador sintáctico. Vas a analizar una oración en español siguiendo SOLO la gramática y el lexicón de abajo. No uses tu conocimiento del español: una oración es válida únicamente si se puede derivar con estas reglas desde Sentence, y una palabra existe únicamente si está en el lexicón.
+
+## Gramática
+
+Notación: A -> alternativa1 | alternativa2. ε es la cadena vacía. Los símbolos en MAYÚSCULAS son tipos de token (terminales) y los demás son no terminales. El símbolo inicial es Sentence.
+
+Sentence -> Clause EndMark
+Clause -> NpSing VpSing | NpPlur VpPlur
+EndMark -> PERIOD | ε
+NounPhrase -> NpSing | NpPlur
+NpSing -> NpMS | NpFS
+NpPlur -> NpMP | NpFP
+NpMS -> DET_MS NOUN_MS AdjListMS NpTail
+NpFS -> DET_FS NOUN_FS AdjListFS NpTail
+NpMP -> DET_MP NOUN_MP AdjListMP NpTail
+NpFP -> DET_FP NOUN_FP AdjListFP NpTail
+AdjListMS -> ADJ_MS AdjListMS | ε
+AdjListFS -> ADJ_FS AdjListFS | ε
+AdjListMP -> ADJ_MP AdjListMP | ε
+AdjListFP -> ADJ_FP AdjListFP | ε
+NpTail -> PrepPhrase NpTail | ε
+PrepPhrase -> PREP NounPhrase
+VpSing -> VERB_S VpTail
+VpPlur -> VERB_P VpTail
+VpTail -> Object AdvOpt PpList
+Object -> NounPhrase | ε
+AdvOpt -> ADV | ε
+PpList -> PrepPhrase PpList | ε
+
+## Lexicón
+
+Cada palabra tiene un solo tipo de token. Entre paréntesis está la categoría UPOS de ese tipo.
+
+DET_MS (DET): el, un
+DET_FS (DET): la, una
+DET_MP (DET): los, unos
+DET_FP (DET): las, unas
+NOUN_MS (NOUN): niño, perro, gato, libro, maestro, árbol, parque
+NOUN_FS (NOUN): niña, manzana, casa, mesa, maestra, carta, escuela
+NOUN_MP (NOUN): niños, perros, gatos, libros, maestros, árboles, parques
+NOUN_FP (NOUN): niñas, manzanas, casas, mesas, maestras, cartas, escuelas
+ADJ_MS (ADJ): pequeño, rojo, alto, viejo, nuevo, blanco
+ADJ_FS (ADJ): pequeña, roja, alta, vieja, nueva, blanca
+ADJ_MP (ADJ): pequeños, rojos, altos, viejos, nuevos, blancos
+ADJ_FP (ADJ): pequeñas, rojas, altas, viejas, nuevas, blancas
+VERB_S (VERB): come, comió, lee, leyó, escribe, escribió, ve, vio, busca, buscó, corre, corrió, duerme, durmió
+VERB_P (VERB): comen, comieron, leen, leyeron, escriben, escribieron, ven, vieron, buscan, buscaron, corren, corrieron, duermen, durmieron
+ADV (ADV): rápidamente, lentamente, ayer, hoy, siempre, temprano
+PREP (ADP): en, con, de, sobre
+PERIOD (PUNCT): .
+
+## Cómo analizar
+
+1. Pasa la oración a minúsculas y separa el punto final como un token aparte.
+2. Busca cada palabra en el lexicón. Si una palabra no está, la oración se rechaza.
+3. Busca una derivación desde Sentence que produzca exactamente los tokens de la oración, en el mismo orden.
+4. Si la derivación existe, la oración se acepta. Si no existe, se rechaza.
+
+## Respuesta
+
+Responde solo con un objeto JSON, sin texto antes ni después, con estos cuatro campos:
+
+{"accepted": true, "tree": "...", "upos": ["...", "..."], "violated_rule": null}
+
+- accepted: true si la oración se deriva con la gramática; false si no.
+- tree: si accepted es true, el árbol de derivación en notación de corchetes y en una sola línea: (NoTerminal hijo1 hijo2 ...). Cada palabra va dentro de su tipo de token, por ejemplo (NpMS (DET_MS el) (NOUN_MS perro)). Puedes omitir los no terminales que solo derivan ε. Si accepted es false, tree es null.
+- upos: una categoría UPOS por palabra, sin contar el punto. Va siempre, aunque rechaces la oración. Si una palabra no está en el lexicón, usa la categoría UPOS que le corresponda (NOUN, VERB, ADJ, ADV, ADP, DET, PRON, PROPN, CCONJ, SCONJ, AUX, NUM, PART, INTJ, X).
+- violated_rule: si accepted es false, una frase corta con la regla o la palabra que impide la derivación. Si accepted es true, null.
+
+## Oración
+
+<<ORACION>>

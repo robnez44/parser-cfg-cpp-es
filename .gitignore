@@ -10,3 +10,6 @@ CLAUDE.md
 .idea/
 Thumbs.db
 desktop.ini
+
+# API key of the LLM experiment (CONTRATO_FASE2.md, section 11)
+.env
