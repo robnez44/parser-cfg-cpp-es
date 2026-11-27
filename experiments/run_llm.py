@@ -38,7 +38,9 @@ MODES = {"zero": "zero_shot.txt", "few": "few_shot.txt"}
 MARKER = "<<ORACION>>"
 
 DEFAULT_MODEL = "claude-haiku-5-5"
-MAX_TOKENS = 2048
+# The model's own reasoning counts toward max_tokens, so there is room for it
+# before the JSON answer.
+MAX_TOKENS = 8192
 # Haiku 5.5 does not accept temperature (any value returns a 400 error), so the
 # variation between calls is measured by repeating each sentence instead.
 DEFAULT_REPEATS = 3
@@ -81,7 +83,7 @@ def load_env_file(path: Path = ROOT / ".env") -> None:
     """Read KEY=VALUE lines from .env without overwriting variables already set."""
     if not path.exists():
         return
-    for line in path.read_text(encoding="utf-8").splitlines():
+    for line in path.read_text(encoding="utf-8-sig").splitlines():
         key, sep, value = line.partition("=")
         if sep and not key.strip().startswith("#"):
             os.environ.setdefault(key.strip(), value.strip().strip('"').strip("'"))
@@ -255,6 +257,17 @@ def summary(mode: str, test_set: list[dict], log: list[dict], results: list[dict
     )
 
 
+def thinking_mismatch(logs: dict[str, Path], thinking: str) -> tuple[Path, str] | None:
+    """Return (log, mode) of the first log that was made with another thinking mode."""
+    for path in logs.values():
+        if not path.exists():
+            continue
+        for entry in read_jsonl(path):
+            if entry.get("thinking") not in (None, thinking):
+                return path, entry.get("thinking")
+    return None
+
+
 def write_jsonl(path: Path, lines: list[dict]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with open(path, "w", encoding="utf-8") as file:
@@ -270,8 +283,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--repeats", type=int, default=DEFAULT_REPEATS,
                         help=f"repeticiones por oración (por defecto {DEFAULT_REPEATS})")
     parser.add_argument("--model", default=DEFAULT_MODEL)
-    parser.add_argument("--thinking", choices=["disabled", "adaptive"], default="disabled",
-                        help="disabled apaga el razonamiento; adaptive deja el del modelo")
+    parser.add_argument("--thinking", choices=["disabled", "adaptive"], default="adaptive",
+                        help="adaptive deja el razonamiento del modelo (por defecto); disabled lo apaga")
     parser.add_argument("--offline", action="store_true",
                         help="no llama a la API: solo arma los resultados con los logs que haya")
     parser.add_argument("--limit", type=int, help="usa solo las primeras N oraciones (para probar)")
@@ -295,6 +308,12 @@ def main(argv: list[str] | None = None) -> int:
             len(pending_calls(test_set, read_jsonl(path) if path.exists() else [], args.repeats))
             for path in logs.values()
         )
+        mixed = thinking_mismatch(logs, args.thinking) if needed else None
+        if mixed:
+            print(f"El log {mixed[0].relative_to(ROOT)} se hizo con thinking={mixed[1]} y ahora pides "
+                  f"thinking={args.thinking}. No se mezclan: borra el log o usa --thinking {mixed[1]}.")
+            return 1
+
         if needed:
             load_env_file()
             if not os.environ.get("ANTHROPIC_API_KEY"):
