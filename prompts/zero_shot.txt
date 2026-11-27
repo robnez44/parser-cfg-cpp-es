@@ -63,7 +63,7 @@ Responde solo con un objeto JSON, sin texto antes ni después, con estos cuatro 
 {"accepted": true, "tree": "...", "upos": ["...", "..."], "violated_rule": null}
 
 - accepted: true si la oración se deriva con la gramática; false si no.
-- tree: si accepted es true, el árbol de derivación en notación de corchetes y en una sola línea: (NoTerminal hijo1 hijo2 ...). Cada palabra va dentro de su tipo de token, por ejemplo (NpMS (DET_MS el) (NOUN_MS perro)). Puedes omitir los no terminales que solo derivan ε. Si accepted es false, tree es null.
+- tree: si accepted es true, el árbol de derivación en notación de corchetes y en una sola línea: (NoTerminal hijo1 hijo2 ...). Cada palabra va dentro de su tipo de token, por ejemplo (NpMS (DET_MS el) (NOUN_MS perro)). El árbol tiene que incluir todos los no terminales de la derivación, también los intermedios como NpSing o NounPhrase; lo único que puedes omitir son los no terminales que derivan ε. Si accepted es false, tree es null.
 - upos: una categoría UPOS por palabra, sin contar el punto. Va siempre, aunque rechaces la oración. Si una palabra no está en el lexicón, usa la categoría UPOS que le corresponda (NOUN, VERB, ADJ, ADV, ADP, DET, PRON, PROPN, CCONJ, SCONJ, AUX, NUM, PART, INTJ, X).
 - violated_rule: si accepted es false, una frase corta con la regla o la palabra que impide la derivación. Si accepted es true, null.
 

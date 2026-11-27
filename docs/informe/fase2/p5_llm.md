@@ -8,7 +8,7 @@ Queremos saber si un LLM sigue una gramática formal cuando se la damos en el pr
 
 ## 2. Montaje del experimento
 
-Usamos Claude Haiku 5.5 (`claude-haiku-5-5`) por la API de Anthropic. El contrato pedía temperatura 0, pero este modelo ya no acepta el parámetro `temperature`: cualquier valor devuelve un error 400. En lugar de fijar la temperatura, repetimos cada oración tres veces y nos quedamos con la respuesta de la mayoría. Así también medimos qué tan estable es el modelo: si en las tres repeticiones no dice lo mismo, lo contamos aparte. Apagamos el razonamiento interno del modelo (`thinking: disabled`) para que todas las llamadas trabajen igual. El identificador del modelo, la fecha, el prompt completo y la respuesta cruda de cada llamada quedan en `logs/llm/`.
+Usamos Claude Haiku 5.5 (`claude-haiku-5-5`) por la API de Anthropic. El contrato pedía temperatura 0, pero este modelo ya no acepta el parámetro `temperature`: cualquier valor devuelve un error 400. En lugar de fijar la temperatura, repetimos cada oración tres veces y nos quedamos con la respuesta de la mayoría. Así también medimos qué tan estable es el modelo: si en las tres repeticiones no dice lo mismo, lo contamos aparte. Dejamos el razonamiento del modelo activado (`thinking: adaptive`, su configuración por defecto). En una prueba de tres oraciones con el razonamiento apagado, el modelo contestó `accepted: false` y en `violated_rule` terminó explicando que la oración sí se derivaba: el JSON pide `accepted` primero, y sin razonar el modelo se compromete antes de derivar. Esa prueba no entra en los resultados. El identificador del modelo, la fecha, el prompt completo y la respuesta cruda de cada llamada quedan en `logs/llm/`.
 
 Hay dos prompts, en `prompts/`:
 

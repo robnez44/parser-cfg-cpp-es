@@ -1,9 +1,11 @@
 import json
+import os
 from types import SimpleNamespace
 
 import pytest
 
 from experiments import run_llm
+from experiments.run_llm import load_env_file as real_load_env_file
 from experiments.llm_validator import GRAMMAR, LEXICON, parse_response, validate
 from experiments.run_llm import (
     MARKER,
@@ -299,3 +301,39 @@ def test_main_without_test_set(project, capsys):
     (project / "data" / "test_set.jsonl").unlink()
     assert run_llm.main(["--offline"]) == 1
     assert "hace falta el set de prueba" in capsys.readouterr().out
+
+
+# ---------- thinking mode and .env ----------
+
+def test_load_env_file_reads_a_file_with_bom_and_crlf(tmp_path, monkeypatch):
+    env = tmp_path / ".env"
+    env.write_bytes("﻿ANTHROPIC_API_KEY=sk-ant-test\r\n".encode("utf-8"))
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    real_load_env_file(env)
+    assert os.environ["ANTHROPIC_API_KEY"] == "sk-ant-test"
+
+
+def test_main_thinking_is_adaptive_by_default(project, monkeypatch):
+    seen = {}
+
+    def fake_run_mode(client, mode, test_set, repeats, model, thinking, log_path):
+        seen["thinking"] = thinking
+        return 0
+
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-test")
+    monkeypatch.setattr(run_llm, "run_mode", fake_run_mode)
+    monkeypatch.setattr("anthropic.Anthropic", lambda **kwargs: object())
+    run_llm.main(["--mode", "zero"])
+    assert seen["thinking"] == "adaptive"
+
+
+def test_main_refuses_to_mix_thinking_modes_in_one_log(project, capsys, monkeypatch):
+    logs = project / "logs" / "llm"
+    logs.mkdir(parents=True)
+    line = {"id": "L1-01", "repeat": 1, "thinking": "disabled", "raw_response": raw(False)}
+    (logs / "zero.jsonl").write_text(json.dumps(line) + "\n", encoding="utf-8")
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-test")
+
+    assert run_llm.main(["--mode", "zero"]) == 1
+    out = capsys.readouterr().out
+    assert "thinking=disabled" in out and "No se mezclan" in out
